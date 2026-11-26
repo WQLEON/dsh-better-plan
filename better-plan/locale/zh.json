@@ -1,0 +1,9 @@
+{
+  "meta": {
+    "title": "Better Plan",
+    "description": "两阶段：先提问、再计划，全部在右侧边栏点选确认。"
+  },
+  "on": "规划 ON",
+  "off": "规划 OFF",
+  "panel": "决策面板"
+}

@@ -1,0 +1,9 @@
+{
+  "meta": {
+    "title": "Better Plan",
+    "description": "Two-phase grilling-then-planning agent with a right-sidebar confirmation panel."
+  },
+  "on": "Plan ON",
+  "off": "Plan OFF",
+  "panel": "Better Plan"
+}

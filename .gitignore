@@ -1,0 +1,19 @@
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+.tmp/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# NOTE: better-plan/node_modules is intentionally NOT ignored.
+# The bundle vendors @deepseek-ai/schemastery so the plugin works on a
+# machine with no network access. Committing it is deliberate.
