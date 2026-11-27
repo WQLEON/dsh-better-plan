@@ -488,3 +488,23 @@ test('hiding the input icon does not disable the mode', async () => {
   for (const handler of b.listeners.get('agent/created') || []) handler({ agent })
   assert.match(prompts[0].text({ scope: agent }), /You are operating with better-plan/)
 })
+
+test('the chat message behind a question batch lands in the timeline first', async () => {
+  const b = boot()
+  const session = { 'x-better-plan-session': 'session-message-entry' }
+  const token = (await state(b, session)).json.token
+  for (const handler of b.listeners.get('session/event') || []) {
+    handler({ id: 'session-message-entry' }, {
+      type: 'user/message',
+      data: { message: { content: [{ type: 'text', text: '帮我做个插件' }] } },
+    })
+  }
+  const res = await post(b, {
+    action: 'publish', kind: 'decision',
+    items: [{ id: 'Q1', title: 'one', options: [{ text: 'A', recommended: true }] }],
+  }, { ...session, 'x-better-plan-token': token })
+  assert.equal(res.status, 200)
+  assert.equal(res.json.timeline[0].kind, 'message')
+  assert.equal(res.json.timeline[0].text, '帮我做个插件')
+  assert.equal(res.json.timeline[1].kind, 'questions')
+})
