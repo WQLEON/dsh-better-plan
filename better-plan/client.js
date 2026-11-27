@@ -634,6 +634,12 @@ window.__ModuleLoader__.load({
       const [discardArmed, setDiscardArmed] = React.useState(false)
       const [settingsOpen, setSettingsOpen] = React.useState(false)
       const headerRef = React.useRef(null)
+      const rootRef = React.useRef(null)
+      const maxBarHeight = () => {
+        const node = rootRef.current
+        const total = node && node.clientHeight > 0 ? node.clientHeight : (typeof window !== 'undefined' ? window.innerHeight : 800)
+        return Math.max(140, total - 160)
+      }
       const barKey = DRAFT_PREFIX + 'bar-height'
       const [barHeight, setBarHeight] = React.useState(() => {
         try {
@@ -723,7 +729,7 @@ window.__ModuleLoader__.load({
         const startY = event.clientY
         const startHeight = barHeight
         const onMove = (move) => {
-          const next = Math.max(startHeight - (move.clientY - startY), 140)
+          const next = Math.min(Math.max(startHeight - (move.clientY - startY), 140), maxBarHeight())
           setBarHeight(next)
           try { sessionStorage.setItem(barKey, String(next)) } catch { /* ignore */ }
         }
@@ -791,6 +797,17 @@ window.__ModuleLoader__.load({
       const stickRef = React.useRef(true)
 
       React.useEffect(() => { setViewRound(null) }, [sessionId])
+      React.useEffect(() => {
+        const clamp = () => setBarHeight((current) => {
+          const next = Math.min(current, maxBarHeight())
+          try { sessionStorage.setItem(barKey, String(next)) } catch { /* ignore */ }
+          return next
+        })
+        clamp()
+        window.addEventListener('resize', clamp)
+        return () => window.removeEventListener('resize', clamp)
+      }, [])
+
       React.useEffect(() => {
         if (!settingsOpen) return undefined
         const onDown = (event) => {
@@ -875,6 +892,7 @@ window.__ModuleLoader__.load({
         : ''
 
       return h('div', {
+        ref: rootRef,
         style: { height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
         onKeyDown: (event) => {
           if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && (pendingTotal > 0 || extra.trim())) {
