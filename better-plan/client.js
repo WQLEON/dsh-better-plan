@@ -495,6 +495,7 @@ window.__ModuleLoader__.load({
       const [drafts, setDrafts] = React.useState({})
       const [extra, setExtra] = React.useState('')
       const [notice, setNotice] = React.useState('')
+      const [refreshing, setRefreshing] = React.useState(false)
       const [resetArmed, setResetArmed] = React.useState(false)
       const draftKey = DRAFT_PREFIX + (sessionId || 'default')
 
@@ -628,13 +629,14 @@ window.__ModuleLoader__.load({
               type: 'button',
               style: ghostBtn,
               title: T.refreshHint,
-              disabled: busy,
+              disabled: busy || refreshing,
               onClick: async () => {
+                if (refreshing) return
+                setRefreshing(true)
                 await reload({ force: true })
-                setNotice(T.refreshed)
-                setTimeout(() => setNotice((current) => (current === T.refreshed ? '' : current)), 1500)
+                setTimeout(() => setRefreshing(false), 1500)
               },
-            }, T.refresh),
+            }, refreshing ? T.refreshed : T.refresh),
             h('button', {
               type: 'button',
               style: resetArmed ? dangerBtn : ghostBtn,
