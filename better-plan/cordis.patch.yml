@@ -1,5 +1,10 @@
+# Inserted into the DSH profile when the bundle is installed.
+#
+# Every config key is optional; the defaults are:
+#   defaultEnabled: true, minPerRound: 3, maxPerRound: 10,
+#   minTotal: 0, autoOpen: true
+# Override them here (or in your own profile patch layer) with an explicit
+# `config:` block when you want different limits.
 - insert:
     - id: better-plan
       name: "better-plan"
-      config:
-        enabled: true

@@ -11,7 +11,17 @@ A DeepSeek Harness (DSH) web client plugin: a right-sidebar decision panel with 
 - **Panel UX**: visible errors, 409 conflict handling, drafts kept per tab, `Ctrl+Enter` submit, arrow-key option navigation, per-session reset, session-scoped pending badge.
 - `lib/core.js` holds the pure state machine; 31 tests run with `npm test`.
 
-## Install
+## Install from source (development, recommended)
+
+```bash
+git clone <repo-url> better-plan-workspace
+```
+
+Point `plugin_manager`'s `install_bundle` `target` at the cloned **absolute path** of the `better-plan`
+directory, restart DSH (or use `dsh-unlag`'s reload), then refresh the page. A linked install picks up
+code changes without reinstalling.
+
+## Install from a release zip
 
 1. Unzip `better-plan-workspace-*.zip` anywhere.
 2. Run `plugin_manager` with `action: "install_bundle"` and an **absolute** `target` pointing at the `better-plan` directory.

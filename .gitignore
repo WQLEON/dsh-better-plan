@@ -17,3 +17,6 @@ desktop.ini
 # NOTE: better-plan/node_modules is intentionally NOT ignored.
 # The bundle vendors @deepseek-ai/schemastery so the plugin works on a
 # machine with no network access. Committing it is deliberate.
+
+# Local analysis helpers (environment-specific, never published)
+.scratch/local-tools/

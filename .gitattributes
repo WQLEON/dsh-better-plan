@@ -1,0 +1,16 @@
+# Keep text files LF in the repository regardless of the authoring OS.
+* text=auto eol=lf
+
+# Images are binary; never try to diff or merge them.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+
+# Markdown is displayed by GitHub; keep it text.
+*.md text
+*.svg text

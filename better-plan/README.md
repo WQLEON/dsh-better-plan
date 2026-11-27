@@ -11,7 +11,17 @@ DSH Web 客户端插件：右侧边栏的决策面板 + 输入框功能开关图
 - **面板体验**：错误可见、409 冲突提示、草稿在标签页内保留、`Ctrl+Enter` 提交、方向键可在选项间移动、可重置本会话、等待确认的徽标按会话统计。
 - 新增 `lib/core.js` 纯状态机与 31 个测试（`npm test`），打包补 `engines.dsh` / `license` / `docs`。
 
-## 安装到另一台电脑
+## 从源码仓库安装（开发用，推荐）
+
+```bash
+git clone <repo-url> better-plan-workspace
+```
+
+把 `plugin_manager` 的 `install_bundle` 的 `target` 指向 clone 出来的 `better-plan` 目录（**绝对路径**），
+返回 `applied` 后重启 DSH（或用 `dsh-unlag` 刷新），再刷新页面。链接安装的目录改代码即生效，
+不需要重新安装。
+
+## 从发行包安装到另一台电脑
 
 前提：那台机器已装 DeepSeek Harness（Desktop 或 Web 均可），并能访问 `plugin_manager`。
 
