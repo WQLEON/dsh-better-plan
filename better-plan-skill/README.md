@@ -96,7 +96,13 @@ alwaysApply: false
 ## 来源
 
 `SKILL.md` 与 `references/` 的提问、领域建模部分改写自
-[mattpocock/skills](https://github.com/mattpocock/skills)（MIT，Copyright © 2026 Matt Pocock）；
+[mattpocock/skills](https://github.com/mattpocock/skills)（MIT，Copyright © 2026 Matt Pocock）：
+
+- `skills/productivity/grilling` —— 设计树、前沿、分轮提问
+- `skills/engineering/domain-modeling` —— 术语校准、GLOSSARY、ADR
+- `skills/engineering/grill-with-docs` —— 「先 grilling 再 domain-modeling」的组合方式（本技能在此基础上补了「计划 → 确认 → 实施」）
+- `skills/productivity/grill-me` —— 只调用 grilling 的简写入口
+
 两阶段流程、计划确认与「自定义答案必须追问」为原创。逐条对照与完整 MIT 文本见仓库根的
 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)。
 

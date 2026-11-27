@@ -64,7 +64,8 @@ cd better-plan && npm test
 
 The grilling and domain-modeling disciplines are adapted from
 [mattpocock/skills](https://github.com/mattpocock/skills) (MIT, Copyright © 2026 Matt Pocock); the
-plan mode and the two-phase flow are original. See
+two-phase shape corresponds to that repository's `grill-with-docs` (grilling + domain-modeling),
+while the plan mode and the "plan → confirm → implement" step are original. See
 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) for the line-by-line mapping and the full license.
 A tool-free, panel-free version of the same discipline ships in
 [`better-plan-skill/`](../better-plan-skill/).

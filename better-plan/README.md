@@ -103,7 +103,8 @@ npm test          # node --test，31 个用例：状态机 + host 路由/门禁/
 
 纪律文本不是全部原创：grilling 与 domain-modeling 改写自
 [mattpocock/skills](https://github.com/mattpocock/skills)（MIT，Copyright © 2026 Matt Pocock），
-plan mode 与两阶段流程为本项目原创。逐条对照与完整 MIT 文本见仓库根
+两阶段的组合方式对应上游 `grill-with-docs`（grilling + domain-modeling），plan mode 与
+「计划 → 确认 → 实施」为本项目原创。逐条对照与完整 MIT 文本见仓库根
 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)。
 
 不想装插件、只想用这套纪律？见不依赖 DSH 的可移植版本 [../better-plan-skill/](../better-plan-skill/)。

@@ -46,6 +46,7 @@ for (const file of ['references/grilling.md', 'references/domain-modeling.md']) 
     fail(`${file} must credit mattpocock/skills and point at THIRD_PARTY_NOTICES.md`)
   }
 }
+if (!/grill-with-docs/.test(skill)) fail('SKILL.md must name the upstream grill-with-docs lineage')
 if (!fs.existsSync(path.join(root, 'THIRD_PARTY_NOTICES.md'))) fail('missing THIRD_PARTY_NOTICES.md')
 
 if (failures.length > 0) {

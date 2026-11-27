@@ -121,13 +121,16 @@ npm test        # 31 个用例：状态机、门禁、CSRF、会话隔离、持�
 |---|---|---|
 | **grilling**（设计树 / 前沿 / 分轮提问） | [mattpocock/skills `skills/productivity/grilling`](https://github.com/mattpocock/skills/blob/main/skills/productivity/grilling/SKILL.md)（MIT） | [disciplines.js](better-plan/disciplines.js) 的 `GRILLING_ASKING`；[better-plan-skill/references/grilling.md](better-plan-skill/references/grilling.md) |
 | **domain-modeling**（术语校准 / GLOSSARY / ADR） | [mattpocock/skills `skills/engineering/domain-modeling`](https://github.com/mattpocock/skills/blob/main/skills/engineering/domain-modeling/SKILL.md)（MIT） | [disciplines.js](better-plan/disciplines.js) 的 `DOMAIN_MODELING`；[better-plan-skill/references/domain-modeling.md](better-plan-skill/references/domain-modeling.md) |
+| **grill-with-docs**（组合：grilling + domain-modeling） | [mattpocock/skills `skills/engineering/grill-with-docs`](https://github.com/mattpocock/skills/blob/main/skills/engineering/grill-with-docs/SKILL.md)（MIT） | 两阶段流程的编排来源；本插件在其后加了「计划 → 确认 → 实施」第三段 |
+| **grill-me**（只调用 grilling 的简写入口） | [mattpocock/skills `skills/productivity/grill-me`](https://github.com/mattpocock/skills/blob/main/skills/productivity/grill-me/SKILL.md)（MIT） | 触发用语与对应关系参考 |
 | **plan mode**（有序计划 + 验证方式 + 确认后才实施） | 本项目原创 | [disciplines.js](better-plan/disciplines.js) 的 `PLAN_MODE` |
 | **两阶段流程 / 面板确认 / 自定义答案必须追问 / 聊天只报数量** | 本项目原创 | 面板与 [better-plan/lib/core.js](better-plan/lib/core.js)、[better-plan/client.js](better-plan/client.js) |
 
 两点说明：
 
 - 改写方式：去掉上游 frontmatter，把「在聊天里提问」改写成「发布到右侧面板、预选选项、一次批量确认」，
-  并把推荐答案变成预选选项；领域建模部分压缩为可注入的系统提示。
+  并把推荐答案变成预选选项；领域建模部分压缩为可注入的系统提示。上游 `grill-with-docs` 本身只是
+  「依次调用 grilling 与 domain-modeling」，本插件在组合之外补了「计划 → 确认 → 实施」两步。
 - 文本**冻结在编写时的时间点**，上游更新不会自动同步；需要跟进时按上表逐段 diff。
 
 ## 安全模型

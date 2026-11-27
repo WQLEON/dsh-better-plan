@@ -82,3 +82,7 @@ restate the questions.
 Read them when the task is design-heavy. They are adapted from
 [mattpocock/skills](https://github.com/mattpocock/skills) (MIT); see `THIRD_PARTY_NOTICES.md` in
 the repository root.
+
+The ask-then-plan shape follows that repository's `grill-with-docs` skill (grilling and
+domain-modeling in one pass), with one addition: an ordered plan that must be confirmed before
+implementation starts. `grill-me` is the upstream shorthand for grilling on its own.

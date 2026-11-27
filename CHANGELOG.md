@@ -15,6 +15,7 @@
 ### 文档
 
 - README 新增「可移植技能（任意智能体）」与「来源与致谢」两节。
+- 「来源与致谢」补充 `grill-with-docs`（两阶段组合方式）与 `grill-me`（grilling 简写入口）两条上游出处。
 - `better-plan/README.md` 与 `README_en.md` 补来源说明与可移植版本入口。
 - 插件运行时行为无变化，`better-plan` 版本仍为 1.1.0。
 
