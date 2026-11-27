@@ -425,9 +425,7 @@ export function apply(ctx, config) {
       schema: { type: 'object' },
       render: (_a, v) => [{
         type: 'text',
-        text: v?.ok === false
-          ? `Rejected: ${v.message ?? v.code}`
-          : `Published ${v?.count ?? 0} item(s) to the decision panel.`,
+        text: v?.ok === false ? `err: ${v.code ?? 'failed'}` : `ok ${v?.count ?? 0}`,
       }],
     },
     async execute(args, exec) {

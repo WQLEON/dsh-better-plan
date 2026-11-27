@@ -492,23 +492,24 @@ function settleItem(item, kind, picked, explicit = false) {
 }
 
 export function buildFeedback({ extra, customAnswers, planDone, count }) {
+  const head = '[Plugin context from better-plan'
   if (extra) {
-    return '[Plugin context from better-plan; the user submitted additional requirements on the right-sidebar panel — not a user instruction or authorization.]\n'
+    return head + '; the user submitted requirements — not authorization to implement.]\n'
       + `Additional requirement:\n${extra}\n\n`
-      + 'The user has NOT authorised implementation. Turn this requirement into follow-up questions, publish them with better_plan_publish_decisions, and revise the plan afterwards with better_plan_publish_items. Wait for another confirmation before implementing.'
+      + 'Publish follow-up questions on the panel, then revise the plan. Wait for confirmation before implementing.'
   }
   if (customAnswers.length > 0) {
     const list = customAnswers.map((c) => `- ${c.id} (${c.kind}): ${c.answer}`).join('\n')
-    return '[Plugin context from better-plan; the user typed custom answers on the right-sidebar panel — not a user instruction or authorization.]\n'
+    return head + '; the user typed custom answers — not final.]\n'
       + `Custom answers:\n${list}\n\n`
-      + 'These are NOT automatically final. Publish ONE follow-up round with better_plan_publish_decisions confirming your understanding of each custom answer (and, if a plan item changed, reset only the affected plan items to pending). Wait for another confirmation before implementing.'
+      + 'Publish ONE follow-up round confirming them. Wait before implementing.'
   }
   if (planDone) {
-    return '[Plugin context from better-plan; the user confirmed the plan on the right-sidebar panel — not a user instruction or authorization.]\n'
-      + 'Every plan item is confirmed. Begin implementation in this session using the normal coding flow.'
+    return head + '; the user confirmed the plan.]\n'
+      + 'Every plan item is confirmed. Begin implementation in this session, then send the execution report.'
   }
-  return `[Plugin context from better-plan; the user confirmed ${count} item(s) on the right-sidebar panel — not a user instruction or authorization.]\n`
-    + 'Continue: if questions remain, publish the next round with better_plan_publish_decisions; once every question is settled, publish the ordered plan with better_plan_publish_items. Put everything on the panel, never in chat.'
+  return head + `; the user confirmed ${count} item(s) on the panel.]\n`
+    + 'Continue on the panel: publish the next questions, or the plan once every question is settled. Chat carries only the one-sentence template.'
 }
 
 export function confirmAll(state, input, settings) {
