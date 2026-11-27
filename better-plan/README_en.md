@@ -2,7 +2,7 @@
 
 A DeepSeek Harness (DSH) web client plugin: a right-sidebar decision panel with a chat-input toggle.
 
-## What changed in 1.3.0
+## What changed in 1.3.1
 
 - **Per-session state**: every conversation gets its own snapshot (`$DSH_HOME/better-plan/<session>.json`), so two windows can never share or overwrite questions. The old shared snapshot is archived once and never read.
 - **No permanent "plan confirmed" prompt block**: a confirmation is delivered once as a `source.kind = better-plan` message to the owning session instead of being re-injected into every later request.
@@ -16,6 +16,7 @@ A DeepSeek Harness (DSH) web client plugin: a right-sidebar decision panel with 
 - **Tool inputs trimmed**: the ignored `status` / `answer` fields are gone and descriptions are shorter; behaviour is unchanged.
 - **"Confirm all" never disappears**: disabled and grey when nothing is pending (label "Confirm all"), enabled as "Submit requirements" once you type one.
 - **Chat template**: 「已提出 X 条问题待回复，请查看决策面板。」 / 「已发布 X 条计划待确认，请查看决策面板。」
+- The hint line under "Other requirements" is gone, and the panel's Refresh button now explains itself (it re-reads panel state, not the plugin) and flashes "Refreshed".
 - `lib/core.js` holds the pure state machine; 41 tests run with `npm test`.
 
 ## Install from source (development, recommended)

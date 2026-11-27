@@ -43,11 +43,12 @@ window.__ModuleLoader__.load({
       confirmAll: ['全部确认', 'Confirm all'],
       extraLabel: ['其他要求', 'Other requirements'],
       extraPlaceholder: ['如果还有别的想法或要求，写在这里；智能体会据此继续追问并更新计划', 'Anything else you want? The agent will ask follow-ups and revise the plan.'],
-      extraHint: ['提交后不会立即实施：智能体会先追问并更新计划，需要你再确认一次', 'Nothing is implemented yet: the agent asks follow-ups and revises the plan for another confirmation.'],
       submitWithExtra: ['提交其他要求', 'Submit requirements'],
       other: ['其他想法…', 'Other idea…'],
       custom: ['输入你的答案（Ctrl+Enter 提交）', 'Type your answer (Ctrl+Enter to submit)'],
       refresh: ['刷新', 'Refresh'],
+      refreshHint: ['重新读取面板状态（不会重载插件）', 'Re-read the panel state (this does not reload the plugin)'],
+      refreshed: ['已刷新', 'Refreshed'],
       confirmed: ['已确认', 'Confirmed'],
       rejected: ['已拒绝', 'Rejected'],
       pending: ['待确认', 'Pending'],
@@ -623,7 +624,17 @@ window.__ModuleLoader__.load({
         h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 } },
           h('h3', { style: { margin: 0, fontSize: 15 } }, T.panel),
           h('div', { style: { display: 'flex', gap: 6 } },
-            h('button', { type: 'button', style: ghostBtn, onClick: () => reload({ force: true }), disabled: busy }, T.refresh),
+            h('button', {
+              type: 'button',
+              style: ghostBtn,
+              title: T.refreshHint,
+              disabled: busy,
+              onClick: async () => {
+                await reload({ force: true })
+                setNotice(T.refreshed)
+                setTimeout(() => setNotice((current) => (current === T.refreshed ? '' : current)), 1500)
+              },
+            }, T.refresh),
             h('button', {
               type: 'button',
               style: resetArmed ? dangerBtn : ghostBtn,
@@ -683,7 +694,6 @@ window.__ModuleLoader__.load({
               background: 'transparent', color: 'inherit', outline: 'none',
             },
           }),
-          extra.trim() ? h('div', { style: { fontSize: 11, opacity: 0.7 } }, T.extraHint) : null,
 
         (() => {
           const canSubmit = !busy && (pendingTotal > 0 || Boolean(extra.trim()))
