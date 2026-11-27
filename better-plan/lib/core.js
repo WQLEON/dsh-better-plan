@@ -294,10 +294,19 @@ function repairRounds(state) {
   const timeline = []
   buckets.forEach((bucket, index) => {
     const per = new Map()
+    const seen = new Set()
     for (const entry of bucket.entries) {
+      const items = (entry.items ?? []).filter((item) => {
+        if (!item?.id) return true
+        const key = entry.kind + ':' + item.id
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+      if (items.length === 0 && entry.kind !== 'requirement' && entry.kind !== 'report') continue
       const batch = (per.get(entry.kind) ?? 0) + 1
       per.set(entry.kind, batch)
-      timeline.push({ ...entry, round: index + 1, batch })
+      timeline.push({ ...entry, round: index + 1, batch, items })
     }
   })
   state.timeline = timeline
@@ -378,13 +387,19 @@ export function publishDecisions(state, items, settings) {
     limit,
     prefix: 'Q',
   })
-  startNextRoundIfDone(next)
   next.decisions = merged.items
   next.counters = { ...next.counters, q: merged.counter }
   // Publishing a new round answers whatever requirement asked for it.
   next.pendingRequirements = []
   next.awaitingFollowup = false
-  appendEntry(next, 'questions', merged.items)
+  // Republishing the same questions must not create a new batch: only items the
+  // session has not seen yet are recorded.
+  const knownQuestions = new Set(state.decisions.map((item) => item.id))
+  const freshQuestions = merged.items.filter((item) => !knownQuestions.has(item.id))
+  if (freshQuestions.length > 0) {
+    startNextRoundIfDone(next)
+    appendEntry(next, 'questions', freshQuestions)
+  }
   next.mode = recomputeMode(next, settings)
   next.revision = state.revision + 1
   const pending = merged.items.filter((d) => d.status === 'pending').length
@@ -433,11 +448,15 @@ export function publishPlan(state, items, settings) {
     limit: MAX_ITEMS,
     prefix: 'P',
   })
-  startNextRoundIfDone(next)
   next.plan = merged.items
   next.counters = { ...next.counters, p: merged.counter }
   next.mode = 'plan'
-  appendEntry(next, 'plan', merged.items)
+  const knownPlan = new Set(state.plan.map((item) => item.id))
+  const freshPlan = merged.items.filter((item) => !knownPlan.has(item.id))
+  if (freshPlan.length > 0) {
+    startNextRoundIfDone(next)
+    appendEntry(next, 'plan', freshPlan)
+  }
   next.revision = state.revision + 1
   return {
     ok: true,

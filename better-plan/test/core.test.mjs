@@ -326,3 +326,20 @@ test('hydrate keeps the timeline and the round', () => {
   assert.equal(restored.timeline.length, 1)
   assert.equal(restored.timeline[0].kind, 'questions')
 })
+
+test('republishing the same questions adds no new batch', () => {
+  let state = publishDecisions(emptyState(), questions(3), settings).state
+  const before = state.timeline.length
+  state = publishDecisions(state, questions(3), settings).state
+  assert.equal(state.timeline.length, before)
+  assert.equal(state.timeline.at(-1).batch, 1)
+})
+
+test('adding one new question records only that item', () => {
+  let state = publishDecisions(emptyState(), questions(3), settings).state
+  const next = [...questions(3), { id: 'Q4', title: 'new', question: 'q', options: ['a'] }]
+  state = publishDecisions(state, next, settings).state
+  assert.equal(state.timeline.length, 2)
+  assert.equal(state.timeline.at(-1).batch, 2)
+  assert.deepEqual(state.timeline.at(-1).items.map((i) => i.id), ['Q4'])
+})
