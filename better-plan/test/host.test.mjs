@@ -301,6 +301,10 @@ test('state survives a plugin reload through the per-session file', async () => 
   assert.equal(res.json.decisions.length, 1)
   assert.equal(res.json.decisions[0].title, 'persisted')
   assert.equal(res.json.revision, 1)
+  // The round and its timeline survive the reload too.
+  assert.equal(res.json.round, 1)
+  assert.equal(res.json.timeline.length, 1)
+  assert.equal(res.json.timeline[0].kind, 'questions')
 })
 
 test('a stale legacy shared snapshot is archived, never adopted', async () => {

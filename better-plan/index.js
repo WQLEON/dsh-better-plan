@@ -233,10 +233,16 @@ export function apply(ctx, config) {
       const temp = `${file}.tmp`
       const payload = {
         revision: state.revision,
+        mode: state.mode,
+        round: state.round,
+        roundDone: state.roundDone,
+        awaitingReport: state.awaitingReport,
+        counters: state.counters,
         decisions: state.decisions,
         plan: state.plan,
         extraRequirements: state.extraRequirements,
         pendingRequirements: state.pendingRequirements,
+        timeline: state.timeline,
       }
       writeFileSync(temp, JSON.stringify(payload), { encoding: 'utf8', mode: 0o600 })
       renameSync(temp, file)
