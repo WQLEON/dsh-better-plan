@@ -551,7 +551,12 @@ export function confirmAll(state, input, settings) {
     && !extra
     && customAnswers.length === 0
   const feedback = buildFeedback({ extra, customAnswers, planDone, count })
-  if (planDone) next.awaitingReport = true
+  const roundHasPlan = next.timeline.some((entry) => entry.round === next.round && entry.kind === 'plan')
+  const everythingSettled = settled(next.plan)
+    && !hasPending(next.decisions)
+    && !next.awaitingFollowup
+    && customAnswers.length === 0
+  if ((planDone || (roundHasPlan && everythingSettled)) && !next.roundDone) next.awaitingReport = true
   next.timeline = syncSnapshots(next.timeline, 'questions', next.decisions)
   next.timeline = syncSnapshots(next.timeline, 'plan', next.plan)
   next.revision = state.revision + 1

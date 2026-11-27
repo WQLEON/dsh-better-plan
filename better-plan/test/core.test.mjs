@@ -351,3 +351,16 @@ test('confirming an item refreshes its timeline snapshot', () => {
   assert.equal(snap.status, 'confirmed')
   assert.equal(snap.answer, 'A')
 })
+
+test('a plan settled alongside a requirement still waits for its report', () => {
+  let state = publishDecisions(emptyState(), questions(3), settings).state
+  state = confirmAll(state, { answers: {} }, settings).state
+  state = publishPlan(state, [{ id: 'P1', title: 'step', detail: 'd' }], settings).state
+  state = confirmAll(state, { answers: {}, extra: 'more please' }, settings).state
+  assert.equal(state.awaitingReport, false)
+  state = publishDecisions(state, [{ id: 'Q9', title: 'q', question: 'q', options: ['a'] }], settings).state
+  state = confirmAll(state, { answers: {} }, settings).state
+  assert.equal(state.awaitingReport, true)
+  state = recordReport(state, '执行报告').state
+  assert.equal(state.roundDone, true)
+})
