@@ -52,7 +52,7 @@ window.__ModuleLoader__.load({
       confirmed: ['已确认', 'Confirmed'],
       rejected: ['已拒绝', 'Rejected'],
       pending: ['待确认', 'Pending'],
-      chosen: ['已选答案', 'Chosen'],
+      chosen: ['回答', 'Answer'],
       allDone: ['全部确认完毕', 'Everything is confirmed'],
       settings: ['设置', 'Settings'],
       defOn: ['默认开启更好的计划模式', 'Default Better Plan mode'],
@@ -821,10 +821,11 @@ window.__ModuleLoader__.load({
           while (el && el !== document.body) {
             const style = window.getComputedStyle(el)
             const height = el.clientHeight
-            if (style.overflowY !== 'visible' && height > 0) { found = height; break }
+            const scrolls = el.scrollHeight > height + 4
+            if (height > 0 && (scrolls || style.overflowY !== 'visible')) { found = height; break }
             el = el.parentElement
           }
-          setPanelHeight(found > 0 ? Math.min(found, viewport) : Math.round(viewport * 0.8))
+          setPanelHeight(found > 0 ? Math.min(found, viewport) : viewport)
         }
         measure()
         window.addEventListener('resize', measure)
@@ -1029,12 +1030,12 @@ window.__ModuleLoader__.load({
 
         ),
         !isCurrent ? h('div', {
-          style: { flex: '0 1 auto', minHeight: 0, borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px', boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
+          style: { flex: 'none', height: 64, boxSizing: 'border-box', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '8px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
         },
           h('div', { style: { fontSize: 12, opacity: 0.75, marginBottom: 8 } }, T.history),
           h('button', { type: 'button', className: 'bp-primary', style: { ...primaryBtn, width: '100%', height: 36 }, onClick: () => setViewRound(null) }, T.backToCurrent)
         ) : h('div', {
-          style: { flex: '0 1 auto', minHeight: 140, height: barHeight, maxHeight: 'calc(100% - 56px)', position: 'relative', overflow: 'hidden', boxSizing: 'border-box', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 68px', display: 'flex', flexDirection: 'column', gap: 6, boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
+          style: { flex: 'none', minHeight: 140, height: barHeight, maxHeight: 'calc(100% - 56px)', position: 'relative', overflow: 'hidden', boxSizing: 'border-box', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 68px', display: 'flex', flexDirection: 'column', gap: 6, boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
         },
           h('div', {
             onMouseDown: startBarResize,
