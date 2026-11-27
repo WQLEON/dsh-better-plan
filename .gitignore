@@ -20,3 +20,7 @@ desktop.ini
 
 # Local analysis helpers (environment-specific, never published)
 .scratch/local-tools/
+
+# Build output and distribution archives
+dist/
+*.zip
