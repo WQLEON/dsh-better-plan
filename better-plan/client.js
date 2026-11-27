@@ -1038,11 +1038,10 @@ window.__ModuleLoader__.load({
 
         ),
         !isCurrent ? h('div', {
-          style: { flex: 'none', height: 64, boxSizing: 'border-box', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', position: 'relative', boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
+          style: { flex: 'none', height: 96, boxSizing: 'border-box', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '10px 16px 12px', boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
         },
-          h('div', { style: { fontSize: 12, opacity: 0.75, padding: '8px 16px 0' } }, T.history),
-          h('div', { style: { position: 'absolute', left: 16, right: 16, bottom: 12 } },
-            h('button', { type: 'button', className: 'bp-primary', style: { ...primaryBtn, width: '100%', height: 40 }, onClick: () => setViewRound(null) }, T.backToCurrent))
+          h('div', { style: { fontSize: 12, opacity: 0.75 } }, T.history),
+          h('button', { type: 'button', className: 'bp-primary', style: { ...primaryBtn, width: '100%', height: 40 }, onClick: () => setViewRound(null) }, T.backToCurrent)
         ) : h('div', {
           style: { flex: 'none', minHeight: 150, height: barHeight, maxHeight: 'calc(100% - 56px)', position: 'relative', overflow: 'hidden', boxSizing: 'border-box', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 68px', display: 'flex', flexDirection: 'column', gap: 6, boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
         },
