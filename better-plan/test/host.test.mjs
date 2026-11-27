@@ -38,6 +38,7 @@ function boot(config = {}) {
   const sections = []
   const agents = new Map()
   const listeners = new Map()
+  const commands = new Map()
   const ctx = {
     logger: { info() {}, warn() {} },
     fiber: {},
@@ -65,6 +66,12 @@ function boot(config = {}) {
       },
     },
     agents: { get: (id) => agents.get(id) },
+    commands: {
+      register(def) {
+        commands.set(def.name, def)
+        return () => commands.delete(def.name)
+      },
+    },
   }
   apply(ctx, config)
 
@@ -73,7 +80,7 @@ function boot(config = {}) {
     await handlers.get(path)(req, res)
     return { status: res.status, json: res.body ? JSON.parse(res.body) : null }
   }
-  return { ctx, handlers, tools, sections, agents, listeners, call }
+  return { ctx, handlers, tools, sections, agents, listeners, call, commands }
 }
 
 const SESSION = 'session-test-0001'
@@ -414,4 +421,68 @@ test('a short factual answer never raises the note', async () => {
   fire('user/message', {})
   fire('assistant/message', { message: { content: [{ type: 'text', text: '可以，当前状态是干净的。' }] } })
   assert.doesNotMatch(prompts[0].text({ scope: agent }), /NOTE:/)
+})
+
+test('the /better-plan command arms exactly one request while the icon is off', async () => {
+  const b = boot()
+  const sessionId = 'session-oneshot'
+  const prompts = []
+  const agent = {
+    session: { id: sessionId },
+    ctx: { get: () => ({ section: (options) => { prompts.push(options); return () => {} } }) },
+  }
+  for (const handler of b.listeners.get('agent/created') || []) handler({ agent })
+  const text = () => prompts[0].text({ scope: agent })
+
+  const command = b.commands.get('better-plan')
+  assert.ok(command, 'the command is registered')
+
+  // Icon off: the command arms the next request.
+  const token = (await state(b, { 'x-better-plan-session': sessionId })).json.token
+  await b.call('/plugins/better-plan/toggle', fakeReq({
+    method: 'POST',
+    headers: headers({ 'content-type': 'application/json', 'x-better-plan-token': token }),
+    body: { enabled: false },
+  }))
+  assert.equal(text(), '')
+  const result = command.handler({ agent, rawInput: '' })
+  assert.equal(result.kind, 'success')
+  assert.match(text(), /You are operating with better-plan/)
+
+  // The turn that uses it ends, and the discipline goes away again.
+  for (const handler of b.listeners.get('session/event') || []) handler({ id: sessionId }, { type: 'turn/end' })
+  assert.equal(text(), '')
+})
+
+test('hiding the icon turns the discipline off, and the command still works', async () => {
+  const b = boot({ showInputIcon: false })
+  const sessionId = 'session-hidden-icon'
+  const prompts = []
+  const agent = {
+    session: { id: sessionId },
+    ctx: { get: () => ({ section: (options) => { prompts.push(options); return () => {} } }) },
+  }
+  for (const handler of b.listeners.get('agent/created') || []) handler({ agent })
+  const text = () => prompts[0].text({ scope: agent })
+
+  assert.equal(text(), '')
+  b.commands.get('better-plan').handler({ agent, rawInput: '' })
+  assert.match(text(), /You are operating with better-plan/)
+})
+
+test('the command is a no-op while the icon is on', async () => {
+  const b = boot()
+  const sessionId = 'session-command-noop'
+  const prompts = []
+  const agent = {
+    session: { id: sessionId },
+    ctx: { get: () => ({ section: (options) => { prompts.push(options); return () => {} } }) },
+  }
+  for (const handler of b.listeners.get('agent/created') || []) handler({ agent })
+  const text = () => prompts[0].text({ scope: agent })
+  assert.match(text(), /You are operating with better-plan/)
+  const result = b.commands.get('better-plan').handler({ agent, rawInput: '' })
+  assert.equal(result.kind, 'success')
+  for (const handler of b.listeners.get('session/event') || []) handler({ id: sessionId }, { type: 'turn/end' })
+  assert.match(text(), /You are operating with better-plan/)
 })

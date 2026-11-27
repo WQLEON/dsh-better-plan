@@ -24,6 +24,8 @@
 - **面板体验**：错误可见、冲突提示、草稿按会话保留、`Ctrl+Enter` 提交、方向键选择、本会话重置、条件轮询（无变化回 304）；「全部确认」常驻底栏，无待确认时灰色禁用。
 - **编号与底栏**：问题始终 Q1、Q2…，计划始终 P1、P2…，跨轮续号且不复用；「其他要求」与「全部确认」常驻面板底部。
 - **严格面板（软拦截）**：开启时若模型在聊天里写了带问号或选项的长回复却没发布面板内容，下一轮会自动收到一句纠正（仅违规时约 40 tokens）。
+- **一次性命令**：图标关闭或隐藏时，发送 `/better-plan` 只对紧接着的一条消息启用模式，回合结束自动失效。
+- **图标开关**：设置里可隐藏输入框图标（默认显示）；侧边栏引导入口显示插件图标。
 - **问题要短**：`question` 只写问题本身，选项只放 `options`，不再把 A/B/C 塞进问题里。
 - **安全默认值**：写接口只接受本机同源请求，并要求一次性令牌。
 
@@ -110,7 +112,7 @@ B. Postgres（要起服务）
 ```bash
 cd better-plan
 node --check index.js && node --check client.js && node --check lib/core.js
-npm test        # 43 个用例：状态机、合并/续号、门禁、CSRF、会话隔离、持久化、304
+npm test        # 46 个用例：状态机、合并/续号、门禁、CSRF、会话隔离、持久化、304
 ```
 
 纯逻辑在 [`lib/core.js`](better-plan/lib/core.js)，host 侧 [`index.js`](better-plan/index.js) 只做 I/O 与鉴权，
@@ -162,7 +164,7 @@ you confirm the same way — nothing is implemented before that.
 
 Highlights: per-session panel state (two windows never share questions), server-side phase gates the
 model cannot skip, a one-time confirmation message instead of a permanent prompt block, a token-guarded
-same-origin write API, a fixed cost of about 0.73k input tokens per request, a soft "strict panel" guard (about 40 tokens only when the model writes panel content in chat), and 43 tests covering the state machine, merge/numbering, gates, CSRF and session isolation.
+same-origin write API, a fixed cost of about 0.73k input tokens per request, a soft "strict panel" guard (about 40 tokens only when the model writes panel content in chat), a one-shot `/better-plan` command, and 46 tests covering the state machine, merge/numbering, gates, CSRF and session isolation.
 Confirmed items keep their status when a list is republished, so nothing is asked twice.
 
 Install with `plugin_manager`'s `install_bundle`, pointing `target` at the absolute path of the

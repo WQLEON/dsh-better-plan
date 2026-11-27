@@ -43,7 +43,7 @@ window.__ModuleLoader__.load({
       confirmAll: ['全部确认', 'Confirm all'],
       extraLabel: ['其他要求', 'Other requirements'],
       extraPlaceholder: ['如果还有别的想法或要求，写在这里；智能体会据此继续追问并更新计划', 'Anything else you want? The agent will ask follow-ups and revise the plan.'],
-      submitWithExtra: ['提交其他要求', 'Submit requirements'],
+      submitWithExtra: ['全部确认并提交其他要求', 'Confirm all and submit requirements'],
       other: ['其他想法…', 'Other idea…'],
       custom: ['输入你的答案（Ctrl+Enter 提交）', 'Type your answer (Ctrl+Enter to submit)'],
       refresh: ['刷新', 'Refresh'],
@@ -60,6 +60,7 @@ window.__ModuleLoader__.load({
       maxPerRound: ['每轮最多问题数', 'Max questions / round'],
       minTotal: ['问题总量下限', 'Min questions in total'],
       autoOpen: ['有待确认时自动展开面板', 'Auto-open the panel when items arrive'],
+      showIcon: ['在输入框显示图标', 'Show the icon in the chat input'],
       save: ['保存设置', 'Save settings'],
       saved: ['已保存', 'Saved'],
       saveFailed: ['已应用（配置未能写入）', 'Applied (config not written)'],
@@ -254,6 +255,7 @@ window.__ModuleLoader__.load({
       const [enabled, setEnabled] = React.useState(true)
       const [pending, setPending] = React.useState(0)
       const [busy, setBusy] = React.useState(false)
+      const [visible, setVisible] = React.useState(true)
       const tokenRef = React.useRef('')
 
       const revisionRef = React.useRef(null)
@@ -274,6 +276,7 @@ window.__ModuleLoader__.load({
           const toggle = await request(ROUTE_TOGGLE)
           if (!alive || !toggle.ok || !toggle.data) return
           setEnabled(toggle.data.enabled !== false)
+          setVisible(toggle.data.settings?.showInputIcon !== false)
           tokenRef.current = typeof toggle.data.token === 'string' ? toggle.data.token : ''
           setPending(0)
         }
@@ -291,6 +294,7 @@ window.__ModuleLoader__.load({
         } finally { setBusy(false) }
       }
 
+      if (!visible) return null
       return h('button', {
         type: 'button',
         'aria-label': enabled ? T.iconOn : T.iconOff,
@@ -472,6 +476,7 @@ window.__ModuleLoader__.load({
           field('maxPerRound', T.maxPerRound, 'num', 3, 200),
           field('minTotal', T.minTotal, 'num', 0, 200),
           field('autoOpen', T.autoOpen, 'bool'),
+          field('showInputIcon', T.showIcon, 'bool'),
           h('div', { style: { display: 'flex', alignItems: 'center', gap: 10 } },
             h('button', {
               type: 'button', style: primaryBtn,
@@ -759,7 +764,10 @@ window.__ModuleLoader__.load({
           id: TAB_ID,
           kind: TAB_KIND,
           title: () => T.tab,
-          guide: [{ id: 'better-plan', order: 100, title: () => T.guide }],
+          guide: [{
+            id: 'better-plan', order: 100, title: () => T.guide,
+            icon: (props) => h(PlanIcon, { size: props?.size ?? 16 }),
+          }],
         }), 'better-plan: tab type')
 
         ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({

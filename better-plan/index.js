@@ -38,9 +38,10 @@ export const Config = z.object({
   maxPerRound: z.natural().min(3).max(200).default(10),
   minTotal: z.natural().min(0).max(200).default(0),
   autoOpen: z.boolean().default(true),
+  showInputIcon: z.boolean().default(true),
 })
 
-export const inject = ['webServer', 'tools', 'systemPrompt', 'agents']
+export const inject = ['webServer', 'tools', 'systemPrompt', 'agents', 'commands']
 
 const SECTION_NAME = 'better-plan:discipline'
 const SECTION_ORDER = 3290
@@ -147,6 +148,7 @@ export function apply(ctx, config) {
     maxPerRound: clampInt(config?.maxPerRound, 3, 200, 10),
     minTotal: clampInt(config?.minTotal, 0, 200, 0),
     autoOpen: config?.autoOpen !== false,
+    showInputIcon: config?.showInputIcon !== false,
   }
   if (settings.maxPerRound < settings.minPerRound) settings.maxPerRound = settings.minPerRound
 
@@ -168,6 +170,13 @@ export function apply(ctx, config) {
   const publishedSinceUser = new Set()
   const NOTICE_TTL_MS = 10 * 60 * 1000
   const NOTICE_TEXT = 'NOTE: your previous reply wrote questions or plan content in chat without publishing. Publish with the panel tools; in chat reply only with the one-sentence template.'
+  // A /better-plan command arms exactly one request for a session whose icon is
+  // off (or hidden). Cleared by turn/end, so it never leaks into later turns.
+  const oneShot = new Map()
+  const ONE_SHOT_TTL_MS = 15 * 60 * 1000
+  const iconOn = () => enabled && settings.showInputIcon
+  const disciplineActive = (sessionId) => Boolean(sessionId) && (iconOn()
+    || (oneShot.has(sessionId) && Date.now() - oneShot.get(sessionId) < ONE_SHOT_TTL_MS))
 
   const registerDisposer = (disposable) => {
     if (typeof disposable === 'function') sectionDisposers.add(disposable)
@@ -474,11 +483,15 @@ export function apply(ctx, config) {
 
   const onSessionEvent = (session, event) => {
     try {
-      if (!enabled) return
       const sessionId = typeof session?.id === 'string' ? session.id : ''
       if (!sessionId || !event || typeof event.type !== 'string') return
+      if (!disciplineActive(sessionId)) return
       if (event.type === 'user/message') {
         publishedSinceUser.delete(sessionId)
+        return
+      }
+      if (event.type === 'turn/end') {
+        oneShot.delete(sessionId)
         return
       }
       if (event.type === 'tool/call') {
@@ -509,8 +522,9 @@ export function apply(ctx, config) {
       order: SECTION_ORDER,
       interpolate: false,
       text: (scope) => {
-        if (scope?.scope !== agent || !enabled) return ''
+        if (scope?.scope !== agent) return ''
         const sessionId = sessionIdOf(agent)
+        if (!disciplineActive(sessionId)) return ''
         const notice = sessionId ? noticeFor(sessionId) : ''
         return notice ? `${disciplines}\n\n${notice}` : disciplines
       },
@@ -541,6 +555,7 @@ export function apply(ctx, config) {
       maxPerRound: clampInt(incoming?.maxPerRound, 3, 200, base.maxPerRound),
       minTotal: clampInt(incoming?.minTotal, 0, 200, base.minTotal),
       autoOpen: typeof incoming?.autoOpen === 'boolean' ? incoming.autoOpen : base.autoOpen,
+      showInputIcon: typeof incoming?.showInputIcon === 'boolean' ? incoming.showInputIcon : base.showInputIcon,
     }
     if (next.maxPerRound < next.minPerRound) next.maxPerRound = next.minPerRound
     return next
@@ -691,6 +706,19 @@ export function apply(ctx, config) {
     }
     sectionDisposers.clear()
   }, 'better-plan: prompt sections cleanup')
+
+  // /better-plan arms the next request; with the icon on it is a silent no-op.
+  ctx.effect(() => ctx.commands?.register?.({
+    name: 'better-plan',
+    description: '只对下一条消息启用更好的计划模式（一次性；图标开启时无效果）',
+    handler: ({ agent }) => {
+      const sessionId = sessionIdOf(agent)
+      if (!sessionId) return { kind: 'error', text: 'no session context' }
+      if (iconOn()) return { kind: 'success', text: '' }
+      oneShot.set(sessionId, Date.now())
+      return { kind: 'success', text: '' }
+    },
+  }), 'better-plan: /better-plan command')
 
   ctx.logger?.info?.('better-plan: active (enabled=%s, questions=%d-%d, minTotal=%d, session-scoped state)',
     enabled, settings.minPerRound, settings.maxPerRound, settings.minTotal)
