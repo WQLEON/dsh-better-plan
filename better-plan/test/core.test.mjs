@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   confirmAll, emptyState, hydrateState, pendingCount, publishDecisions, publishPlan,
-  recomputeMode, recordReport, sanitizeItems, settleOne,
+  discardRound, recomputeMode, recordReport, sanitizeItems, settleOne,
 } from '../lib/core.js'
 
 const settings = { minPerBatch: 3, maxPerBatch: 10, minTotal: 0 }
@@ -376,4 +376,19 @@ test('the execution report records whenever the round is settled', () => {
   assert.equal(recorded.state.timeline.at(-1).kind, 'report')
   // A second report in the same round is refused.
   assert.equal(recordReport(recorded.state, 'again').ok, false)
+})
+
+test('discard keeps the round as history and starts a fresh one', () => {
+  let state = publishDecisions(emptyState(), questions(2), settings).state
+  state = confirmAll(state, { answers: {} }, settings).state
+  const before = state.timeline.length
+  const out = discardRound(state)
+  assert.equal(out.state.round, 2)
+  assert.equal(out.state.timeline.length, before + 1)
+  assert.equal(out.state.timeline.at(-1).kind, 'discard')
+  assert.equal(out.state.decisions.length, 0)
+  assert.equal(out.state.plan.length, 0)
+  const next = publishDecisions(out.state, [{ id: 'Q9', title: 'x' }], settings).state
+  assert.equal(next.round, 2)
+  assert.equal(next.timeline.at(-1).round, 2)
 })

@@ -25,6 +25,7 @@ import {
   clampInt,
   confirmAll,
   emptyState,
+  discardRound,
   hydrateState,
   publishDecisions,
   publishPlan,
@@ -661,8 +662,7 @@ export function apply(ctx, config) {
             })
           }
           notices.delete(session.raw)
-          notices.delete(session.raw)
-        const persisted = commitState(session.key, outcome.state)
+          const persisted = commitState(session.key, outcome.state)
           return sendJson(res, 200, { ...view(outcome.state, session, persisted), ...outcome.result, persisted })
         }
         const outcome = publishDecisions(state, body?.items ?? body?.decisions, settings)
@@ -685,6 +685,13 @@ export function apply(ctx, config) {
           woken,
           persisted,
         })
+      }
+
+      if (action === 'discardRound') {
+        const outcome = discardRound(state)
+        notices.delete(session.raw)
+        const persisted = commitState(session.key, outcome.state)
+        return sendJson(res, 200, { ...view(outcome.state, session, persisted), ok: true, discarded: true, persisted })
       }
 
       if (action === 'confirm' || action === 'reject') {

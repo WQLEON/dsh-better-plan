@@ -272,7 +272,7 @@ export function hydrateState(raw) {
   return state
 }
 
-const ENTRY_KINDS = new Set(['questions', 'plan', 'requirement', 'report'])
+const ENTRY_KINDS = new Set(['questions', 'plan', 'requirement', 'report', 'discard'])
 
 /**
  * Regroup the timeline so a round holds its questions, plans and requirements,
@@ -287,7 +287,7 @@ function repairRounds(state) {
   const buckets = [{ entries: [] }]
   for (const entry of state.timeline) {
     const current = buckets[buckets.length - 1]
-    const closed = current.entries.some((e) => e.kind === 'report')
+    const closed = current.entries.some((e) => e.kind === 'report' || e.kind === 'discard')
     if (entry.kind === 'questions' && closed) buckets.push({ entries: [] })
     buckets[buckets.length - 1].entries.push({ ...entry })
   }
@@ -579,6 +579,25 @@ export function recordReport(state, text) {
   appendEntry(next, 'report', [], { text: textOf(text, 4000) })
   next.revision = state.revision + 1
   return { ok: true, state: next, round: next.round }
+}
+
+/**
+ * Discard the working set of the current round: the entries stay in the
+ * timeline as history, the round advances and the new one starts empty.
+ */
+export function discardRound(state) {
+  const next = cloneState(state)
+  appendEntry(next, 'discard', [], { text: '' })
+  next.round += 1
+  next.roundDone = false
+  next.awaitingReport = false
+  next.awaitingFollowup = false
+  next.decisions = []
+  next.plan = []
+  next.pendingRequirements = []
+  next.mode = 'asking'
+  next.revision = state.revision + 1
+  return { state: next, round: next.round }
 }
 
 /** Copy settled items back into the timeline snapshots of the same kind. */

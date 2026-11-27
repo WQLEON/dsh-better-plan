@@ -80,6 +80,9 @@ window.__ModuleLoader__.load({
       expand: ['展开', 'Expand'],
       collapse: ['收起', 'Collapse'],
       relatedPlans: ['对应计划', 'Plans'],
+      discard: ['丢弃本轮', 'Discard round'],
+      discardConfirm: ['再点一次丢弃', 'Click again to discard'],
+      discardEntry: ['本轮已丢弃', 'Round discarded'],
       updatedMark: ['内容已更新', 'Updated'],
       conflict: ['面板内容已更新，请重新查看后再确认', 'The panel was updated — review it again before confirming'],
       loadFailed: ['无法读取面板状态，稍后自动重试', 'Could not read the panel state; retrying automatically'],
@@ -520,7 +523,7 @@ window.__ModuleLoader__.load({
     function ReportCard({ entry, planIds }) {
       useLang()
       const [open, setOpen] = React.useState(false)
-      const text = entry.text || ''
+      const text = String(entry.text || '').replace(/^\s*#{1,4}\s*(执行报告|Execution report)\s*(\r?\n|$)/i, '').trim()
       const long = text.length > 800
       const shown = long && !open ? text.slice(0, 300) + '…' : text
       const time = entry.at ? new Date(entry.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
@@ -609,6 +612,7 @@ window.__ModuleLoader__.load({
       const [notice, setNotice] = React.useState('')
       const [refreshing, setRefreshing] = React.useState(false)
       const [resetArmed, setResetArmed] = React.useState(false)
+      const [discardArmed, setDiscardArmed] = React.useState(false)
       const draftKey = DRAFT_PREFIX + (sessionId || 'default')
 
       // Drafts survive a panel remount (same tab, same session).
@@ -686,6 +690,22 @@ window.__ModuleLoader__.load({
         }
       }
 
+      const discard = async () => {
+        if (!discardArmed) {
+          setDiscardArmed(true)
+          setTimeout(() => setDiscardArmed(false), 3000)
+          return
+        }
+        setDiscardArmed(false)
+        const result = await submit({ action: 'discardRound' })
+        if (result && result.ok) {
+          setDrafts({})
+          setExtra('')
+          setViewRound(null)
+          try { sessionStorage.removeItem(draftKey) } catch { /* ignore */ }
+        }
+      }
+
       const reset = async () => {
         if (!resetArmed) {
           setResetArmed(true)
@@ -752,6 +772,9 @@ window.__ModuleLoader__.load({
         if (entry.kind === 'report') {
           return h(ReportCard, { key, entry, planIds: planIdsOf(entry) })
         }
+        if (entry.kind === 'discard') {
+          return h('div', { key }, h('div', { style: dividerStyle }, T.discardEntry))
+        }
         if (entry.kind === 'requirement') {
           return h('div', { key },
             h('div', { style: dividerStyle }, T.requirementEntry),
@@ -788,6 +811,52 @@ window.__ModuleLoader__.load({
         },
       },
         h('div', {
+          style: {
+            flex: 'none', display: 'flex', alignItems: 'center', gap: 6,
+            padding: '10px 16px 8px',
+            borderBottom: '1px solid var(--dsw-alias-border-l1, transparent)',
+            background: 'var(--dsw-alias-bg-layer-1, transparent)',
+          },
+        },
+          h('h3', { style: { margin: 0, fontSize: 15, marginRight: 'auto' } }, T.panel),
+          h('button', {
+            type: 'button', style: ghostBtn, title: T.prevRound,
+            disabled: shownRound <= 1, onClick: () => setViewRound(Math.max(1, shownRound - 1)),
+          }, '‹'),
+          h('button', {
+            type: 'button', style: ghostBtn, title: T.nextRound,
+            disabled: shownRound >= currentRound, onClick: () => setViewRound(Math.min(currentRound, shownRound + 1)),
+          }, '›'),
+          h('span', { style: { fontSize: 11, opacity: 0.65, minWidth: 44, textAlign: 'center' } }, fill(T.round, shownRound)),
+          h('button', {
+            type: 'button',
+            style: discardArmed ? dangerBtn : ghostBtn,
+            title: T.discard,
+            onClick: discard,
+            disabled: busy,
+          }, discardArmed ? T.discardConfirm : T.discard),
+          h('button', {
+            type: 'button',
+            style: ghostBtn,
+            title: T.resetHint,
+            onClick: reset,
+            disabled: busy,
+          }, resetArmed ? T.resetConfirm : T.reset),
+          h('button', {
+            type: 'button',
+            style: ghostBtn,
+            title: T.refreshHint,
+            disabled: busy || refreshing,
+            onClick: async () => {
+              if (refreshing) return
+              setRefreshing(true)
+              await reload({ force: true })
+              setTimeout(() => setRefreshing(false), 1500)
+            },
+          }, refreshing ? T.refreshed : T.refresh)
+        ),
+
+        h('div', {
           ref: scrollRef,
           onScroll: (event) => {
             const node = event.currentTarget
@@ -796,51 +865,10 @@ window.__ModuleLoader__.load({
           style: { flex: '1 1 auto', minHeight: 0, overflowY: 'auto', padding: '16px 16px 0', display: 'flex', flexDirection: 'column', gap: 14 },
         },
         h('div', { 'aria-live': 'polite', style: visuallyHidden }, announcement),
-        h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 } },
-          h('div', { key: 'title' },
-            h('h3', { style: { margin: 0, fontSize: 15 } }, T.panel),
-            h('div', { style: { fontSize: 11, opacity: 0.65, marginTop: 2 } }, fill(T.round, shownRound))),
-          h('div', { style: { display: 'flex', gap: 6, alignItems: 'center' } },
-            h('button', {
-              type: 'button', style: ghostBtn, title: T.prevRound,
-              disabled: shownRound <= 1, onClick: () => setViewRound(Math.max(1, shownRound - 1)),
-            }, '‹'),
-            h('button', {
-              type: 'button', style: ghostBtn, title: T.nextRound,
-              disabled: shownRound >= currentRound, onClick: () => setViewRound(Math.min(currentRound, shownRound + 1)),
-            }, '›'),
-            h('button', {
-              type: 'button',
-              style: ghostBtn,
-              title: T.refreshHint,
-              disabled: busy || refreshing,
-              onClick: async () => {
-                if (refreshing) return
-                setRefreshing(true)
-                await reload({ force: true })
-                setTimeout(() => setRefreshing(false), 1500)
-              },
-            }, refreshing ? T.refreshed : T.refresh),
-            h('button', {
-              type: 'button',
-              style: resetArmed ? dangerBtn : ghostBtn,
-              title: T.resetHint,
-              onClick: reset,
-              disabled: busy,
-            }, resetArmed ? T.resetConfirm : T.reset)
-          )
-        ),
 
         error ? h(ErrorBanner, { message: T.loadFailed, onRetry: () => reload({ force: true }) }) : null,
         notice ? h('div', { role: 'alert', style: { fontSize: 12, color: 'var(--dsw-alias-label-secondary)' } }, notice) : null,
         state && state.sessionScoped === false ? h('div', { style: { fontSize: 11, opacity: 0.6 } }, T.notScoped) : null,
-
-        h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
-          h('span', { style: statusStyle('pending') }, mode === 'plan' ? T.planning : T.asking),
-          pendingTotal === 0 && (decisions.length > 0 || plan.length > 0)
-            ? h('span', { style: { fontSize: 12, color: 'var(--dsw-alias-label-success, #2a0)' } }, T.allDone)
-            : null
-        ),
 
         h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
           entries.length > 0
