@@ -5,7 +5,7 @@ import {
   recomputeMode, sanitizeItems, settleOne,
 } from '../lib/core.js'
 
-const settings = { minPerRound: 3, maxPerRound: 10, minTotal: 0 }
+const settings = { minPerBatch: 3, maxPerBatch: 10, minTotal: 0 }
 
 const questions = (n = 3, recommended = 'A') => Array.from({ length: n }, (_, i) => ({
   id: `Q${i + 1}`,
@@ -35,17 +35,17 @@ test('options: exactly one recommended survives, empty options dropped', () => {
   assert.deepEqual(item.options.map((o) => o.recommended), [true, false])
 })
 
-test('publishDecisions truncates to maxPerRound and reports it', () => {
-  const { result } = publishDecisions(emptyState(), questions(5), { ...settings, maxPerRound: 3 })
+test('publishDecisions truncates to maxPerBatch and reports it', () => {
+  const { result } = publishDecisions(emptyState(), questions(5), { ...settings, maxPerBatch: 3 })
   assert.equal(result.count, 3)
   assert.equal(result.truncated, true)
-  assert.equal(result.belowMinPerRound, false)
+  assert.equal(result.belowMinPerBatch, false)
 })
 
 test('publishDecisions flags a short round', () => {
   const { result } = publishDecisions(emptyState(), questions(1), settings)
-  assert.equal(result.belowMinPerRound, true)
-  assert.equal(result.minPerRound, 3)
+  assert.equal(result.belowMinPerBatch, true)
+  assert.equal(result.minPerBatch, 3)
 })
 
 test('plan is refused while questions are pending', () => {
@@ -84,7 +84,7 @@ test('plan publishes once the asking phase is settled', () => {
   assert.equal(out.state.mode, 'plan')
   assert.equal(out.state.plan[0].status, 'pending')
   assert.deepEqual(out.result, {
-    ok: true, kind: 'plan', count: 1, pending: 1, kept: 0, reopened: 0, mode: 'plan', revision: state.revision + 1,
+    ok: true, kind: 'plan', count: 1, pending: 1, kept: 0, reopened: 0, round: 1, mode: 'plan', revision: state.revision + 1,
   })
 })
 
@@ -255,10 +255,55 @@ test('reusing an existing id with new content reopens that slot (R2)', () => {
 
 test('discipline text stays compact and carries both chat templates', async () => {
   const { buildDisciplines } = await import('../disciplines.js')
-  const text = buildDisciplines({ minPerRound: 3, maxPerRound: 10, minTotal: 0 })
+  const text = buildDisciplines({ minPerBatch: 3, maxPerBatch: 10, minTotal: 0 })
   assert.ok(text.length < 3000, 'discipline must stay compact: ' + text.length + ' chars')
   assert.match(text, /已提出 X 条问题待回复，请查看决策面板。/)
   assert.match(text, /已发布 X 条计划待确认，请查看决策面板。/)
   assert.match(text, /never reuse one/)
   assert.match(text, /never add a placeholder/)
+})
+
+test('publishing appends timeline entries with per-kind batch numbers', () => {
+  let state = publishDecisions(emptyState(), questions(3), settings).state
+  assert.equal(state.round, 1)
+  assert.equal(state.timeline.length, 1)
+  assert.equal(state.timeline[0].kind, 'questions')
+  assert.equal(state.timeline[0].batch, 1)
+  state = publishDecisions(state, [{ id: 'Q9', title: 'again', question: 'q', options: ['a'] }], settings).state
+  assert.equal(state.timeline[1].kind, 'questions')
+  assert.equal(state.timeline[1].batch, 2)
+})
+
+test('extra requirements and plans land in the same round timeline', () => {
+  let state = publishDecisions(emptyState(), questions(3), settings).state
+  state = confirmAll(state, { answers: {} }, settings).state
+  state = confirmAll(state, { extra: 'please add tests' }, settings).state
+  assert.equal(state.timeline.at(-1).kind, 'requirement')
+  state = publishDecisions(state, questions(2), settings).state
+  const plan = publishPlan(state, [{ id: 'P1', title: 'step', detail: 'd' }], settings)
+  assert.equal(plan.ok, true)
+  assert.equal(plan.state.timeline.at(-1).kind, 'plan')
+  assert.equal(plan.state.timeline.at(-1).round, 1)
+})
+
+test('a finished round starts the next one when new content arrives', () => {
+  let state = publishDecisions(emptyState(), questions(3), settings).state
+  state = confirmAll(state, { answers: {} }, settings).state
+  state = publishPlan(state, [{ id: 'P1', title: 'step', detail: 'd' }], settings).state
+  assert.equal(state.round, 1)
+  state = confirmAll(state, { answers: {} }, settings).state
+  assert.equal(state.round, 1)
+  assert.equal(state.roundDone, true)
+  state = publishDecisions(state, [{ id: 'Q9', title: 'next', question: 'q', options: ['a'] }], settings).state
+  assert.equal(state.round, 2)
+  assert.equal(state.timeline.at(-1).round, 2)
+  assert.equal(state.timeline.at(-1).batch, 1)
+})
+
+test('hydrate keeps the timeline and the round', () => {
+  let state = publishDecisions(emptyState(), questions(3), settings).state
+  const restored = hydrateState(JSON.parse(JSON.stringify(state)))
+  assert.equal(restored.round, 1)
+  assert.equal(restored.timeline.length, 1)
+  assert.equal(restored.timeline[0].kind, 'questions')
 })

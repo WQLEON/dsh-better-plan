@@ -45,6 +45,11 @@ export function emptyState() {
     awaitingFollowup: false,
     // Highest number ever handed out for each prefix; numbers are never reused.
     counters: { q: 0, p: 0 },
+    // Round = one cycle that ends when its last plan is executed. Entries are
+    // appended in publishing order so the panel can replay the whole round.
+    round: 1,
+    roundDone: false,
+    timeline: [],
   }
 }
 
@@ -102,6 +107,33 @@ export function signatureOf(item) {
     item?.detail ?? '',
     Array.isArray(item?.options) ? item.options.map((o) => [o.text, o.recommended === true]) : [],
   ])
+}
+
+/** The next per-kind batch number inside the current round. */
+function nextBatch(state, kind) {
+  return state.timeline.filter((e) => e.round === state.round && e.kind === kind).length + 1
+}
+
+/** Snapshot one published batch into the timeline. */
+function appendEntry(state, kind, items, extra = {}) {
+  const entry = {
+    kind,
+    at: Date.now(),
+    round: state.round,
+    batch: nextBatch(state, kind),
+    items: (Array.isArray(items) ? items : []).map((item) => ({ ...item })),
+    ...extra,
+  }
+  state.timeline = [...state.timeline, entry]
+  return entry
+}
+
+/** A finished round starts the next one when new content arrives. */
+function startNextRoundIfDone(state) {
+  if (state.roundDone) {
+    state.round += 1
+    state.roundDone = false
+  }
 }
 
 function pendingItem(id, shape) {
@@ -212,11 +244,33 @@ export function hydrateState(raw) {
     .filter((x) => typeof x === 'string').slice(-MAX_EXTRA_ITEMS)
   state.awaitingFollowup = Array.isArray(raw.pendingRequirements) && raw.pendingRequirements.length > 0
   state.revision = Number.isSafeInteger(raw.revision) && raw.revision >= 0 ? raw.revision : 0
+  state.round = clampInt(raw.round, 1, 1e6, 1)
+  state.roundDone = raw.roundDone === true
+  state.timeline = sanitizeTimeline(raw.timeline)
   state.counters = {
     q: Math.max(clampInt(raw?.counters?.q, 0, 1e9, 0), highestNumber(state.decisions, 'Q')),
     p: Math.max(clampInt(raw?.counters?.p, 0, 1e9, 0), highestNumber(state.plan, 'P')),
   }
   return state
+}
+
+const ENTRY_KINDS = new Set(['questions', 'plan', 'requirement'])
+
+/** Stored timeline entries: shape checked, unknown kinds dropped. */
+function sanitizeTimeline(raw) {
+  if (!Array.isArray(raw)) return []
+  return raw.slice(-200).map((entry, i) => {
+    const o = entry && typeof entry === 'object' ? entry : {}
+    const kind = ENTRY_KINDS.has(o.kind) ? o.kind : 'questions'
+    return {
+      kind,
+      at: Number.isFinite(o.at) ? o.at : Date.now(),
+      round: clampInt(o.round, 1, 1e6, 1),
+      batch: clampInt(o.batch, 1, 1e6, i + 1),
+      items: sanitizeStored(o.items, kind === 'plan' ? 'P' : 'Q'),
+      ...(typeof o.text === 'string' ? { text: textOf(o.text, MAX_EXTRA_TEXT) } : {}),
+    }
+  })
 }
 
 /** Stored items keep their settled status; only the shape is re-checked. */
@@ -268,18 +322,20 @@ export function recomputeMode(state, settings) {
 
 export function publishDecisions(state, items, settings) {
   const next = cloneState(state)
-  const limit = settings?.maxPerRound ?? 10
+  const limit = settings?.maxPerBatch ?? settings?.maxPerRound ?? 10
   const merged = mergeItems(items, {
     existing: next.decisions,
     counter: next.counters.q,
     limit,
     prefix: 'Q',
   })
+  startNextRoundIfDone(next)
   next.decisions = merged.items
   next.counters = { ...next.counters, q: merged.counter }
   // Publishing a new round answers whatever requirement asked for it.
   next.pendingRequirements = []
   next.awaitingFollowup = false
+  appendEntry(next, 'questions', merged.items)
   next.mode = recomputeMode(next, settings)
   next.revision = state.revision + 1
   const pending = merged.items.filter((d) => d.status === 'pending').length
@@ -293,9 +349,10 @@ export function publishDecisions(state, items, settings) {
       kept: merged.kept,
       reopened: merged.reopened,
       truncated: merged.dropped > 0,
-      belowMinPerRound: pending > 0 && pending < (settings?.minPerRound ?? 3),
-      minPerRound: settings?.minPerRound ?? 3,
-      maxPerRound: limit,
+      belowMinPerBatch: pending > 0 && pending < (settings?.minPerBatch ?? 3),
+      minPerBatch: settings?.minPerBatch ?? 3,
+      maxPerBatch: limit,
+      round: next.round,
       mode: next.mode,
       revision: next.revision,
     },
@@ -327,9 +384,11 @@ export function publishPlan(state, items, settings) {
     limit: MAX_ITEMS,
     prefix: 'P',
   })
+  startNextRoundIfDone(next)
   next.plan = merged.items
   next.counters = { ...next.counters, p: merged.counter }
   next.mode = 'plan'
+  appendEntry(next, 'plan', merged.items)
   next.revision = state.revision + 1
   return {
     ok: true,
@@ -341,6 +400,7 @@ export function publishPlan(state, items, settings) {
       pending: merged.items.filter((d) => d.status === 'pending').length,
       kept: merged.kept,
       reopened: merged.reopened,
+      round: next.round,
       mode: next.mode,
       revision: next.revision,
     },
@@ -407,6 +467,7 @@ export function confirmAll(state, input, settings) {
     next.extraRequirements = [...next.extraRequirements, extra].slice(-MAX_EXTRA_ITEMS)
     next.pendingRequirements = [...next.pendingRequirements, extra].slice(-MAX_EXTRA_ITEMS)
     next.awaitingFollowup = true
+    appendEntry(next, 'requirement', [], { text: extra })
   }
   if (customAnswers.length > 0) next.awaitingFollowup = true
 
@@ -416,8 +477,9 @@ export function confirmAll(state, input, settings) {
     && !extra
     && customAnswers.length === 0
   const feedback = buildFeedback({ extra, customAnswers, planDone, count })
+  if (planDone) next.roundDone = true
   next.revision = state.revision + 1
-  return { state: next, count, customAnswers, planDone, feedback, mode: next.mode }
+  return { state: next, count, customAnswers, planDone, feedback, mode: next.mode, round: next.round }
 }
 
 /** Single-item settle (kept for completeness; the panel uses the batch path). */
@@ -441,6 +503,7 @@ export function settleOne(state, input, settings) {
   next.mode = recomputeMode(next, settings)
   next.revision = state.revision + 1
   const allDone = !hasPending(next.decisions) && !hasPending(next.plan) && next.plan.length > 0 && settled(next.plan)
+  if (allDone) next.roundDone = true
   const feedback = buildFeedback({ extra: '', customAnswers: [], planDone: allDone, count: 1 })
   return { ok: true, state: next, item: list[index], feedback, mode: next.mode }
 }

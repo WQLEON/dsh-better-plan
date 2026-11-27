@@ -2,7 +2,7 @@
 
 A DeepSeek Harness (DSH) web client plugin: a right-sidebar decision panel with a chat-input toggle.
 
-## What changed in 1.5.0
+## What changed in 1.6.0
 
 - **Per-session state**: every conversation gets its own snapshot (`$DSH_HOME/better-plan/<session>.json`), so two windows can never share or overwrite questions. The old shared snapshot is archived once and never read.
 - **No permanent "plan confirmed" prompt block**: a confirmation is delivered once as a `source.kind = better-plan` message to the owning session instead of being re-injected into every later request.
@@ -24,7 +24,10 @@ A DeepSeek Harness (DSH) web client plugin: a right-sidebar decision panel with 
 - **Input-icon setting**: `showInputIcon` (default on). Hiding the icon counts as the mode being off; `/better-plan` still arms one request.
 - **Sidebar icon**: the panel's guide entry shows the plugin icon instead of the default placeholder.
 - The "Submit requirements" button is now "Confirm all and submit requirements".
-- `lib/core.js` holds the pure state machine; 46 tests run with `npm test`.
+- **Round timeline**: the header shows "Round N" with prev/next buttons; each round mixes questions, plans and requirements in publish order, separated by "Questions #n" / "Plan #n" dividers; past rounds are read-only.
+- **Two-tier injection**: the full discipline once per activation (~0.38k tokens), then a ~0.05k reminder.
+- **Commands**: `/better-plan` and `/better-plan-off` match the input icon.
+- `lib/core.js` holds the pure state machine; 50 tests run with `npm test`.
 
 ## Install from source (development, recommended)
 

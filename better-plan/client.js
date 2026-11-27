@@ -56,8 +56,8 @@ window.__ModuleLoader__.load({
       allDone: ['全部确认完毕', 'Everything is confirmed'],
       settings: ['设置', 'Settings'],
       defOn: ['默认开启更好的计划模式', 'Default Better Plan mode'],
-      minPerRound: ['每轮最少问题数', 'Min questions / round'],
-      maxPerRound: ['每轮最多问题数', 'Max questions / round'],
+      minPerBatch: ['每次最少问题数', 'Min questions / batch'],
+      maxPerBatch: ['每次最多问题数', 'Max questions / batch'],
       minTotal: ['问题总量下限', 'Min questions in total'],
       autoOpen: ['有待确认时自动展开面板', 'Auto-open the panel when items arrive'],
       showIcon: ['在输入框显示图标', 'Show the icon in the chat input'],
@@ -68,6 +68,14 @@ window.__ModuleLoader__.load({
       resetConfirm: ['再点一次确认清空', 'Click again to clear'],
       resetDone: ['已清空', 'Cleared'],
       wakeFailed: ['已确认，但没能唤醒智能体；请手动发送任意消息', 'Confirmed, but the agent could not be woken — send any message to continue'],
+      round: ['第 {n} 轮', 'Round {n}'],
+      prevRound: ['查看上一轮', 'Previous round'],
+      nextRound: ['查看下一轮', 'Next round'],
+      history: ['历史轮次（只读）', 'Past round (read-only)'],
+      backToCurrent: ['回到当前轮', 'Back to the current round'],
+      batchQuestions: ['第 {n} 次提问', 'Questions #{n}'],
+      batchPlan: ['第 {n} 次计划', 'Plan #{n}'],
+      requirementEntry: ['其他要求', 'Additional requirement'],
       conflict: ['面板内容已更新，请重新查看后再确认', 'The panel was updated — review it again before confirming'],
       loadFailed: ['无法读取面板状态，稍后自动重试', 'Could not read the panel state; retrying automatically'],
       writeFailed: ['提交失败，请稍后重试', 'Submit failed — try again'],
@@ -178,6 +186,7 @@ window.__ModuleLoader__.load({
     /* --------------------------------------------------------------- styling */
 
     const sectionHeading = { margin: '0 0 8px', fontSize: 13, fontWeight: 600, lineHeight: 1.5, color: 'inherit' }
+    const dividerStyle = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, opacity: 0.6, margin: '6px 0 2px' }
     const btnBase = {
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       borderRadius: 8, fontSize: 12, lineHeight: 1, cursor: 'pointer',
@@ -328,7 +337,7 @@ window.__ModuleLoader__.load({
 
     /* -------------------------------------------------------------- one item */
 
-    function ItemCard({ item, kind, draft, onDraft }) {
+    function ItemCard({ item, kind, draft, onDraft, readOnly = false }) {
       useLang()
       const settled = item.status !== 'pending'
       const options = Array.isArray(item.options) ? item.options : []
@@ -391,7 +400,7 @@ window.__ModuleLoader__.load({
       )
 
       const body = []
-      if (!settled && rows.length > 0) {
+      if (!settled && !readOnly && rows.length > 0) {
         body.push(h('div', { key: 'rows', role: 'radiogroup', 'aria-label': item.title || item.id, style: { display: 'flex', flexDirection: 'column', gap: 6 } },
           rows.map((row, index) => radio({
             row: rows[index], index, on: index === selected && !other, label: row.text,
@@ -472,8 +481,8 @@ window.__ModuleLoader__.load({
         }, `${open ? '▾' : '▸'} ${T.settings}`),
         open ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 } },
           field('defaultEnabled', T.defOn, 'bool'),
-          field('minPerRound', T.minPerRound, 'num', 3, 200),
-          field('maxPerRound', T.maxPerRound, 'num', 3, 200),
+          field('minPerBatch', T.minPerBatch, 'num', 3, 200),
+          field('maxPerBatch', T.maxPerBatch, 'num', 3, 200),
           field('minTotal', T.minTotal, 'num', 0, 200),
           field('autoOpen', T.autoOpen, 'bool'),
           field('showInputIcon', T.showIcon, 'bool'),
@@ -610,6 +619,50 @@ window.__ModuleLoader__.load({
       const plan = state?.plan || []
       const pendingTotal = state ? (state.pendingDecisions || 0) + (state.pendingPlan || 0) : 0
       const mode = state?.mode || 'asking'
+      const timeline = Array.isArray(state?.timeline) ? state.timeline : []
+      const currentRound = state?.round || 1
+      const [viewRound, setViewRound] = React.useState(null)
+      const shownRound = viewRound === null ? currentRound : viewRound
+      const isCurrent = shownRound === currentRound
+      const scrollRef = React.useRef(null)
+      const stickRef = React.useRef(true)
+
+      React.useEffect(() => { setViewRound(null) }, [sessionId])
+      React.useEffect(() => {
+        if (viewRound !== null && (viewRound > currentRound || viewRound < 1)) setViewRound(null)
+      }, [currentRound, viewRound])
+      React.useEffect(() => {
+        const node = scrollRef.current
+        if (node && stickRef.current) node.scrollTop = node.scrollHeight
+      }, [state?.revision, shownRound])
+
+      const entries = timeline.filter((entry) => entry.round === shownRound)
+      const liveById = (id) => decisions.find((d) => d.id === id) || plan.find((p) => p.id === id)
+      const fill = (template, n) => String(template).replace('{n}', String(n))
+      const renderEntry = (entry) => {
+        const key = `${entry.round}-${entry.kind}-${entry.batch}-${entry.at}`
+        if (entry.kind === 'requirement') {
+          return h('div', { key },
+            h('div', { style: dividerStyle }, T.requirementEntry),
+            h('div', { style: { fontSize: 12, whiteSpace: 'pre-wrap', opacity: 0.85 } }, entry.text || ''))
+        }
+        const questions = entry.kind === 'questions'
+        return h('div', { key },
+          h('div', { style: dividerStyle }, fill(questions ? T.batchQuestions : T.batchPlan, entry.batch)),
+          h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+            (entry.items || []).map((snap) => {
+              const live = liveById(snap.id)
+              const item = isCurrent && live ? live : snap
+              return h(ItemCard, {
+                key: key + '-' + snap.id,
+                item,
+                kind: questions ? 'decision' : 'plan',
+                draft: isCurrent ? drafts[item.id] : undefined,
+                onDraft,
+                readOnly: !isCurrent,
+              })
+            })))
+      }
       const announcement = state
         ? `${pendingTotal} ${T.unanswered}`
         : ''
@@ -624,12 +677,27 @@ window.__ModuleLoader__.load({
         },
       },
         h('div', {
+          ref: scrollRef,
+          onScroll: (event) => {
+            const node = event.currentTarget
+            stickRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 40
+          },
           style: { flex: '1 1 auto', minHeight: 0, overflowY: 'auto', padding: '16px 16px 0', display: 'flex', flexDirection: 'column', gap: 14 },
         },
         h('div', { 'aria-live': 'polite', style: visuallyHidden }, announcement),
-        h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 } },
-          h('h3', { style: { margin: 0, fontSize: 15 } }, T.panel),
-          h('div', { style: { display: 'flex', gap: 6 } },
+        h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 } },
+          h('div', { key: 'title' },
+            h('h3', { style: { margin: 0, fontSize: 15 } }, T.panel),
+            h('div', { style: { fontSize: 11, opacity: 0.65, marginTop: 2 } }, fill(T.round, shownRound))),
+          h('div', { style: { display: 'flex', gap: 6, alignItems: 'center' } },
+            h('button', {
+              type: 'button', style: ghostBtn, title: T.prevRound,
+              disabled: shownRound <= 1, onClick: () => setViewRound(Math.max(1, shownRound - 1)),
+            }, '‹'),
+            h('button', {
+              type: 'button', style: ghostBtn, title: T.nextRound,
+              disabled: shownRound >= currentRound, onClick: () => setViewRound(Math.min(currentRound, shownRound + 1)),
+            }, '›'),
             h('button', {
               type: 'button',
               style: ghostBtn,
@@ -663,27 +731,20 @@ window.__ModuleLoader__.load({
             : null
         ),
 
-        h('div', null,
-          h('h4', { style: sectionHeading }, T.questions),
-          decisions.length === 0
+        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
+          entries.length === 0
             ? h('div', { style: { opacity: 0.7, fontSize: 12 } }, T.emptyQuestions)
-            : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
-              decisions.map((d) => h(ItemCard, { key: 'd-' + d.id, item: d, kind: 'decision', draft: drafts[d.id], onDraft }))
-            )
-        ),
-
-        h('div', null,
-          h('h4', { style: sectionHeading }, T.plan),
-          plan.length === 0
-            ? h('div', { style: { opacity: 0.7, fontSize: 12 } }, T.emptyPlan)
-            : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
-              plan.map((d) => h(ItemCard, { key: 'p-' + d.id, item: d, kind: 'plan', draft: drafts[d.id], onDraft }))
-            )
+            : entries.map(renderEntry)
         ),
 
         h(SettingsSection, { settings: state?.settings || {}, onSave: saveSettings })
         ),
-        h('div', {
+        !isCurrent ? h('div', {
+          style: { flex: 'none', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px' },
+        },
+          h('div', { style: { fontSize: 12, opacity: 0.75, marginBottom: 8 } }, T.history),
+          h('button', { type: 'button', style: { ...primaryBtn, width: '100%', height: 36 }, onClick: () => setViewRound(null) }, T.backToCurrent)
+        ) : h('div', {
           style: { flex: 'none', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px', display: 'flex', flexDirection: 'column', gap: 6 },
         },
           h('div', { style: sectionHeading }, T.extraLabel),

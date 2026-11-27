@@ -34,8 +34,12 @@ import {
 
 export const Config = z.object({
   defaultEnabled: z.boolean().default(true),
-  minPerRound: z.natural().min(3).max(200).default(3),
-  maxPerRound: z.natural().min(3).max(200).default(10),
+  minPerBatch: z.natural().min(3).max(200).default(3),
+  maxPerBatch: z.natural().min(3).max(200).default(10),
+  // Deprecated aliases: 0 means "not set". Saving writes 0 here, so the new
+  // keys win from then on while an existing profile keeps its old limits once.
+  minPerRound: z.natural().min(0).max(200).default(0),
+  maxPerRound: z.natural().min(0).max(200).default(0),
   minTotal: z.natural().min(0).max(200).default(0),
   autoOpen: z.boolean().default(true),
   showInputIcon: z.boolean().default(true),
@@ -144,13 +148,13 @@ function sendEmpty(res, status) {
 export function apply(ctx, config) {
   let settings = {
     defaultEnabled: config?.defaultEnabled !== false,
-    minPerRound: clampInt(config?.minPerRound, 3, 200, 3),
-    maxPerRound: clampInt(config?.maxPerRound, 3, 200, 10),
+    minPerBatch: clampInt(Number(config?.minPerRound) || config?.minPerBatch, 3, 200, 3),
+    maxPerBatch: clampInt(Number(config?.maxPerRound) || config?.maxPerBatch, 3, 200, 10),
     minTotal: clampInt(config?.minTotal, 0, 200, 0),
     autoOpen: config?.autoOpen !== false,
     showInputIcon: config?.showInputIcon !== false,
   }
-  if (settings.maxPerRound < settings.minPerRound) settings.maxPerRound = settings.minPerRound
+  if (settings.maxPerBatch < settings.minPerBatch) settings.maxPerBatch = settings.minPerBatch
 
   // The toggle is a property of the running app, not of one conversation.
   let enabled = settings.defaultEnabled
@@ -170,13 +174,19 @@ export function apply(ctx, config) {
   const publishedSinceUser = new Set()
   const NOTICE_TTL_MS = 10 * 60 * 1000
   const NOTICE_TEXT = 'NOTE: your previous reply wrote questions or plan content in chat without publishing. Publish with the panel tools; in chat reply only with the one-sentence template.'
-  // A /better-plan command arms exactly one request for a session whose icon is
-  // off (or hidden). Cleared by turn/end, so it never leaks into later turns.
-  const oneShot = new Map()
-  const ONE_SHOT_TTL_MS = 15 * 60 * 1000
-  const iconOn = () => enabled && settings.showInputIcon
-  const disciplineActive = (sessionId) => Boolean(sessionId) && (iconOn()
-    || (oneShot.has(sessionId) && Date.now() - oneShot.get(sessionId) < ONE_SHOT_TTL_MS))
+  // Two-tier injection: a session gets the full discipline once per icon-on
+  // period, then a short reminder. Turning the icon off ends the period, so the
+  // next activation injects the full text again.
+  const fullInjected = new Map()
+  let modeGeneration = 0
+  const REMINDER_TEXT = 'BP reminder: publish questions and plans with the panel tools; in chat reply only with the one-sentence template; ids continue Q/P and confirmed items are never re-asked.'
+  const disciplineActive = (sessionId) => Boolean(sessionId) && enabled
+  const setEnabled = (value) => {
+    if (enabled === value) return
+    enabled = value
+    modeGeneration += 1
+    fullInjected.clear()
+  }
 
   const registerDisposer = (disposable) => {
     if (typeof disposable === 'function') sectionDisposers.add(disposable)
@@ -253,6 +263,8 @@ export function apply(ctx, config) {
       enabled,
       revision: state.revision,
       mode: state.mode,
+      round: state.round,
+      timeline: state.timeline,
       counters: state.counters,
       settings,
       pending: pendingDecisions + pendingPlan > 0,
@@ -490,10 +502,7 @@ export function apply(ctx, config) {
         publishedSinceUser.delete(sessionId)
         return
       }
-      if (event.type === 'turn/end') {
-        oneShot.delete(sessionId)
-        return
-      }
+      if (event.type === 'turn/end') return
       if (event.type === 'tool/call') {
         const name = event.data?.name ?? event.data?.call?.name ?? ''
         if (typeof name === 'string' && name.startsWith('better_plan_publish_')) {
@@ -526,7 +535,10 @@ export function apply(ctx, config) {
         const sessionId = sessionIdOf(agent)
         if (!disciplineActive(sessionId)) return ''
         const notice = sessionId ? noticeFor(sessionId) : ''
-        return notice ? `${disciplines}\n\n${notice}` : disciplines
+        const full = fullInjected.get(sessionId) !== modeGeneration
+        if (full) fullInjected.set(sessionId, modeGeneration)
+        const body = full ? disciplines : REMINDER_TEXT
+        return notice ? `${body}\n\n${notice}` : body
       },
     }))
   }
@@ -540,7 +552,13 @@ export function apply(ctx, config) {
     const editor = ctx.get?.('configEditor')
     if (!entry || typeof editor?.edit !== 'function') return false
     try {
-      await editor.edit(entry, (current) => ({ ...(current ?? {}), ...next }))
+      await editor.edit(entry, (current) => ({
+        ...(current ?? {}),
+        ...next,
+        // Migrate: new keys are authoritative from now on.
+        minPerRound: 0,
+        maxPerRound: 0,
+      }))
       return true
     } catch (error) {
       ctx.logger?.warn?.('better-plan: could not persist config (%s)', error?.message ?? String(error))
@@ -551,13 +569,13 @@ export function apply(ctx, config) {
   const normaliseSettings = (incoming, base) => {
     const next = {
       defaultEnabled: typeof incoming?.defaultEnabled === 'boolean' ? incoming.defaultEnabled : base.defaultEnabled,
-      minPerRound: clampInt(incoming?.minPerRound, 3, 200, base.minPerRound),
-      maxPerRound: clampInt(incoming?.maxPerRound, 3, 200, base.maxPerRound),
+      minPerBatch: clampInt(incoming?.minPerBatch ?? incoming?.minPerRound, 3, 200, base.minPerBatch),
+      maxPerBatch: clampInt(incoming?.maxPerBatch ?? incoming?.maxPerRound, 3, 200, base.maxPerBatch),
       minTotal: clampInt(incoming?.minTotal, 0, 200, base.minTotal),
       autoOpen: typeof incoming?.autoOpen === 'boolean' ? incoming.autoOpen : base.autoOpen,
       showInputIcon: typeof incoming?.showInputIcon === 'boolean' ? incoming.showInputIcon : base.showInputIcon,
     }
-    if (next.maxPerRound < next.minPerRound) next.maxPerRound = next.minPerRound
+    if (next.maxPerBatch < next.minPerBatch) next.maxPerBatch = next.minPerBatch
     return next
   }
 
@@ -572,7 +590,7 @@ export function apply(ctx, config) {
       if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' })
       const body = await readBody(req)
       if (typeof body?.enabled !== 'boolean') return sendJson(res, 400, { error: 'enabled must be boolean' })
-      enabled = body.enabled
+      setEnabled(body.enabled)
       return sendJson(res, 200, { ok: true, enabled, settings })
     } catch (error) {
       return sendJson(res, error?.status ?? 500, { error: error?.message ?? String(error) })
@@ -707,19 +725,21 @@ export function apply(ctx, config) {
     sectionDisposers.clear()
   }, 'better-plan: prompt sections cleanup')
 
-  // /better-plan arms the next request; with the icon on it is a silent no-op.
-  ctx.effect(() => ctx.commands?.register?.({
-    name: 'better-plan',
-    description: '只对下一条消息启用更好的计划模式（一次性；图标开启时无效果）',
-    handler: ({ agent }) => {
-      const sessionId = sessionIdOf(agent)
-      if (!sessionId) return { kind: 'error', text: 'no session context' }
-      if (iconOn()) return { kind: 'success', text: '' }
-      oneShot.set(sessionId, Date.now())
+  // The commands are the icon's twins: /better-plan turns the mode on,
+  // /better-plan-off turns it off, both app-wide.
+  const registerCommand = (name, value) => ctx.commands?.register?.({
+    name,
+    description: value
+      ? '开启更好的计划模式（与输入框图标一致）'
+      : '关闭更好的计划模式（与输入框图标一致）',
+    handler: () => {
+      setEnabled(value)
       return { kind: 'success', text: '' }
     },
-  }), 'better-plan: /better-plan command')
+  })
+  ctx.effect(() => registerCommand('better-plan', true), 'better-plan: /better-plan')
+  ctx.effect(() => registerCommand('better-plan-off', false), 'better-plan: /better-plan-off')
 
   ctx.logger?.info?.('better-plan: active (enabled=%s, questions=%d-%d, minTotal=%d, session-scoped state)',
-    enabled, settings.minPerRound, settings.maxPerRound, settings.minTotal)
+    enabled, settings.minPerBatch, settings.maxPerBatch, settings.minTotal)
 }

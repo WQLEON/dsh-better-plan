@@ -1,6 +1,6 @@
 {
   "name": "better-plan",
-  "version": "1.5.3",
+  "version": "1.6.0",
   "private": true,
   "description": "Two-phase grilling-then-planning agent with a right-sidebar confirmation panel.",
   "license": "MIT",

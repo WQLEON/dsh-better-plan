@@ -10,8 +10,8 @@
  */
 
 export function buildDisciplines(settings = {}) {
-  const min = Math.max(1, Math.trunc(settings.minPerRound ?? 3))
-  const max = Math.max(min, Math.trunc(settings.maxPerRound ?? 10))
+  const min = Math.max(1, Math.trunc(settings.minPerBatch ?? settings.minPerRound ?? 3))
+  const max = Math.max(min, Math.trunc(settings.maxPerBatch ?? settings.maxPerRound ?? 10))
   const minTotal = Math.max(0, Math.trunc(settings.minTotal ?? 0))
 
   const lines = [
