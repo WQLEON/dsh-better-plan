@@ -637,8 +637,10 @@ window.__ModuleLoader__.load({
       const rootRef = React.useRef(null)
       const maxBarHeight = () => {
         const node = rootRef.current
-        const total = node && node.clientHeight > 0 ? node.clientHeight : (typeof window !== 'undefined' ? window.innerHeight : 800)
-        return Math.max(140, total - 160)
+        const host = node && node.parentElement
+        const viewport = typeof window !== 'undefined' ? window.innerHeight : 800
+        const measured = host && host.clientHeight > 0 ? host.clientHeight : (node && node.clientHeight > 0 ? node.clientHeight : viewport)
+        return Math.max(140, Math.min(measured, viewport) - 160)
       }
       const barKey = DRAFT_PREFIX + 'bar-height'
       const [barHeight, setBarHeight] = React.useState(() => {
@@ -893,7 +895,7 @@ window.__ModuleLoader__.load({
 
       return h('div', {
         ref: rootRef,
-        style: { height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
+        style: { height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', position: 'relative' },
         onKeyDown: (event) => {
           if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && (pendingTotal > 0 || extra.trim())) {
             event.preventDefault()
@@ -984,7 +986,7 @@ window.__ModuleLoader__.load({
             const node = event.currentTarget
             stickRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 40
           },
-          style: { flex: '1 1 auto', minHeight: 0, overflowY: 'auto', padding: '16px 16px 0', paddingBottom: barHeight + 16, display: 'flex', flexDirection: 'column', gap: 14 },
+          style: { flex: '1 1 auto', minHeight: 0, overflowY: 'auto', padding: '16px 16px 0', paddingBottom: 16, display: 'flex', flexDirection: 'column', gap: 14 },
         },
         h('div', { 'aria-live': 'polite', style: visuallyHidden }, announcement),
 
@@ -1006,12 +1008,12 @@ window.__ModuleLoader__.load({
 
         ),
         !isCurrent ? h('div', {
-          style: { flex: 'none', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px', boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
+          style: { flex: '0 1 auto', minHeight: 0, borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px', boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
         },
           h('div', { style: { fontSize: 12, opacity: 0.75, marginBottom: 8 } }, T.history),
           h('button', { type: 'button', className: 'bp-primary', style: { ...primaryBtn, width: '100%', height: 36 }, onClick: () => setViewRound(null) }, T.backToCurrent)
         ) : h('div', {
-          style: { flex: 'none', height: barHeight, maxHeight: '100%', overflow: 'hidden', boxSizing: 'border-box', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px', display: 'flex', flexDirection: 'column', gap: 6, boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
+          style: { flex: '0 1 auto', minHeight: 140, height: barHeight, maxHeight: 'calc(100% - 56px)', overflow: 'hidden', boxSizing: 'border-box', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px', display: 'flex', flexDirection: 'column', gap: 6, boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
         },
           h('div', {
             onMouseDown: startBarResize,
