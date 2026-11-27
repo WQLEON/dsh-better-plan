@@ -483,10 +483,11 @@ export function publishPlan(state, items, settings) {
 
 /* ------------------------------------------------------------------ settle */
 
-function settleItem(item, kind, picked) {
-  const chosen = typeof picked === 'string' && picked.trim()
-    ? picked.slice(0, MAX_TEXT)
-    : defaultAnswerOf(item, kind)
+function settleItem(item, kind, picked, explicit = false) {
+  const value = typeof picked === 'string' ? picked.slice(0, MAX_TEXT) : ''
+  // An explicit answer may be empty: the user chose "other" and left it blank,
+  // which means neither a choice nor a rejection — keep it confirmed and empty.
+  const chosen = explicit ? value : (value.trim() ? value : defaultAnswerOf(item, kind))
   return { ...item, status: 'confirmed', answer: chosen, updatedAt: Date.now() }
 }
 
@@ -522,8 +523,9 @@ export function confirmAll(state, input, settings) {
   const settleList = (list, listKind) => list.map((item) => {
     if (item.status !== 'pending') return item
     count += 1
+    const hasAnswer = Object.prototype.hasOwnProperty.call(answers, item.id)
     const picked = answers[item.id]
-    if (typeof picked === 'string' && picked.trim()) {
+    if (hasAnswer && typeof picked === 'string' && picked.trim()) {
       const recommended = defaultAnswerOf(item, listKind)
       // A3 by request: any non-recommended answer — preset option or typed
       // text — counts as custom and keeps the grilling loop open.
@@ -531,7 +533,7 @@ export function confirmAll(state, input, settings) {
         customAnswers.push({ id: item.id, kind: listKind, answer: picked.trim() })
       }
     }
-    return settleItem(item, listKind, typeof picked === 'string' ? picked : '')
+    return settleItem(item, listKind, typeof picked === 'string' ? picked : '', hasAnswer)
   })
 
   const hadPendingPlan = next.plan.some((item) => item.status === 'pending')

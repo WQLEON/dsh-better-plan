@@ -416,3 +416,12 @@ test('a requirement submitted after the report starts a new round', () => {
   assert.equal(out.timeline.at(-1).round, 2)
   assert.equal(out.awaitingFollowup, true)
 })
+
+test('an explicitly empty answer settles without a follow-up', () => {
+  const state = publishDecisions(emptyState(), questions(2), settings).state
+  const out = confirmAll(state, { answers: { Q1: '', Q2: 'A' } }, settings)
+  assert.equal(out.state.decisions[0].status, 'confirmed')
+  assert.equal(out.state.decisions[0].answer, '')
+  assert.equal(out.state.decisions[1].answer, 'A')
+  assert.equal(out.customAnswers.length, 0)
+})

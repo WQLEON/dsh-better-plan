@@ -640,7 +640,7 @@ window.__ModuleLoader__.load({
         const host = node && node.parentElement
         const viewport = typeof window !== 'undefined' ? window.innerHeight : 800
         const measured = host && host.clientHeight > 0 ? host.clientHeight : (node && node.clientHeight > 0 ? node.clientHeight : viewport)
-        return Math.max(140, Math.min(measured, viewport) - 160)
+        return Math.max(140, Math.min(measured, viewport) - 56)
       }
       const barKey = DRAFT_PREFIX + 'bar-height'
       const [barHeight, setBarHeight] = React.useState(() => {
@@ -1013,7 +1013,7 @@ window.__ModuleLoader__.load({
           h('div', { style: { fontSize: 12, opacity: 0.75, marginBottom: 8 } }, T.history),
           h('button', { type: 'button', className: 'bp-primary', style: { ...primaryBtn, width: '100%', height: 36 }, onClick: () => setViewRound(null) }, T.backToCurrent)
         ) : h('div', {
-          style: { flex: '0 1 auto', minHeight: 140, height: barHeight, maxHeight: 'calc(100% - 56px)', overflow: 'hidden', boxSizing: 'border-box', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px', display: 'flex', flexDirection: 'column', gap: 6, boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
+          style: { flex: '0 1 auto', minHeight: 140, height: barHeight, maxHeight: 'calc(100% - 56px)', position: 'relative', overflow: 'hidden', boxSizing: 'border-box', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 68px', display: 'flex', flexDirection: 'column', gap: 6, boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
         },
           h('div', {
             onMouseDown: startBarResize,
@@ -1038,7 +1038,9 @@ window.__ModuleLoader__.load({
         (() => {
           const canSubmit = !busy && (pendingTotal > 0 || Boolean(extra.trim()))
           const label = extra.trim() ? T.submitWithExtra : T.confirmAll
-          return h('button', {
+          return h('div', {
+            style: { position: 'absolute', left: 16, right: 16, bottom: 12 },
+          }, h('button', {
             type: 'button',
             className: 'bp-primary',
             style: {
@@ -1055,7 +1057,7 @@ window.__ModuleLoader__.load({
             'aria-disabled': !canSubmit,
             'aria-busy': busy,
             onClick: confirmBatch,
-          }, label)
+          }, label))
         })()
         )
       )
