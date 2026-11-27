@@ -570,7 +570,7 @@ window.__ModuleLoader__.load({
 
     /* --------------------------------------------------------------- settings */
 
-    function SettingsSection({ settings, onSave }) {
+    function SettingsSection({ settings, onSave, expanded = false }) {
       useLang()
       const [open, setOpen] = React.useState(false)
       const [draft, setDraft] = React.useState(settings)
@@ -592,14 +592,14 @@ window.__ModuleLoader__.load({
           })
       )
 
-      return h('div', { style: { borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', paddingTop: 10 } },
-        h('button', {
+      return h('div', { style: expanded ? {} : { borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', paddingTop: 10 } },
+        expanded ? null : h('button', {
           type: 'button',
           'aria-expanded': open,
           onClick: () => setOpen((v) => !v),
           style: { background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, color: 'inherit', opacity: 0.75 },
         }, `${open ? '▾' : '▸'} ${T.settings}`),
-        open ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 } },
+        expanded || open ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8, marginTop: expanded ? 0 : 10 } },
           field('defaultEnabled', T.defOn, 'bool'),
           field('minPerBatch', T.minPerBatch, 'num', 3, 200),
           field('maxPerBatch', T.maxPerBatch, 'num', 3, 200),
@@ -632,6 +632,15 @@ window.__ModuleLoader__.load({
       const [refreshing, setRefreshing] = React.useState(false)
       const [resetArmed, setResetArmed] = React.useState(false)
       const [discardArmed, setDiscardArmed] = React.useState(false)
+      const [settingsOpen, setSettingsOpen] = React.useState(false)
+      const headerRef = React.useRef(null)
+      const barKey = DRAFT_PREFIX + 'bar-height'
+      const [barHeight, setBarHeight] = React.useState(() => {
+        try {
+          const saved = Number(sessionStorage.getItem(barKey))
+          return Number.isFinite(saved) && saved >= 140 ? saved : 190
+        } catch { return 190 }
+      })
       const draftKey = DRAFT_PREFIX + (sessionId || 'default')
 
       // Drafts survive a panel remount (same tab, same session).
@@ -709,6 +718,23 @@ window.__ModuleLoader__.load({
         }
       }
 
+      const startBarResize = (event) => {
+        event.preventDefault()
+        const startY = event.clientY
+        const startHeight = barHeight
+        const onMove = (move) => {
+          const next = Math.min(Math.max(startHeight - (move.clientY - startY), 140), Math.max(200, window.innerHeight * 0.6))
+          setBarHeight(next)
+          try { sessionStorage.setItem(barKey, String(next)) } catch { /* ignore */ }
+        }
+        const onUp = () => {
+          document.removeEventListener('mousemove', onMove)
+          document.removeEventListener('mouseup', onUp)
+        }
+        document.addEventListener('mousemove', onMove)
+        document.addEventListener('mouseup', onUp)
+      }
+
       const discard = async () => {
         if (!discardArmed) {
           setDiscardArmed(true)
@@ -765,6 +791,16 @@ window.__ModuleLoader__.load({
       const stickRef = React.useRef(true)
 
       React.useEffect(() => { setViewRound(null) }, [sessionId])
+      React.useEffect(() => {
+        if (!settingsOpen) return undefined
+        const onDown = (event) => {
+          const node = headerRef.current
+          if (node && node.contains(event.target)) return
+          setSettingsOpen(false)
+        }
+        document.addEventListener('mousedown', onDown)
+        return () => document.removeEventListener('mousedown', onDown)
+      }, [settingsOpen])
       React.useEffect(() => {
         if (viewRound !== null && (viewRound > currentRound || viewRound < 1)) setViewRound(null)
       }, [currentRound, viewRound])
@@ -859,6 +895,7 @@ window.__ModuleLoader__.load({
           '.bp-primary:hover:not(:disabled) { filter: brightness(1.08); }',
         ].join('\n')),
         h('div', {
+          ref: headerRef,
           style: {
             flex: 'none', display: 'flex', alignItems: 'center', gap: 6,
             padding: '10px 16px 8px',
@@ -905,8 +942,22 @@ window.__ModuleLoader__.load({
               await reload({ force: true })
               setTimeout(() => setRefreshing(false), 1500)
             },
-          }, refreshing ? T.refreshed : T.refresh)
-          )
+          }, refreshing ? T.refreshed : T.refresh),
+          h('button', {
+            type: 'button',
+            className: 'bp-bar-btn',
+            'aria-expanded': settingsOpen,
+            onClick: () => setSettingsOpen((value) => !value),
+          }, `${settingsOpen ? '▾' : '▸'} ${T.settings}`)
+          ),
+          settingsOpen ? h('div', {
+            style: {
+              position: 'absolute', top: '100%', right: 12, zIndex: 20, width: 280,
+              background: 'var(--dsw-alias-bg-layer-1, #fff)',
+              border: '1px solid var(--dsw-alias-border-l1, transparent)',
+              borderRadius: 10, padding: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+            },
+          }, h(SettingsSection, { settings: state?.settings || {}, onSave: saveSettings, expanded: true })) : null
         ),
 
         h('div', {
@@ -935,7 +986,6 @@ window.__ModuleLoader__.load({
                 ])
         ),
 
-        h(SettingsSection, { settings: state?.settings || {}, onSave: saveSettings })
         ),
         !isCurrent ? h('div', {
           style: { flex: 'none', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px', boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
@@ -943,8 +993,12 @@ window.__ModuleLoader__.load({
           h('div', { style: { fontSize: 12, opacity: 0.75, marginBottom: 8 } }, T.history),
           h('button', { type: 'button', className: 'bp-primary', style: { ...primaryBtn, width: '100%', height: 36 }, onClick: () => setViewRound(null) }, T.backToCurrent)
         ) : h('div', {
-          style: { flex: 'none', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px', display: 'flex', flexDirection: 'column', gap: 6, boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
+          style: { flex: 'none', height: barHeight, boxSizing: 'border-box', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px', display: 'flex', flexDirection: 'column', gap: 6, boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
         },
+          h('div', {
+            onMouseDown: startBarResize,
+            style: { flex: 'none', height: 10, margin: '-10px -16px 0', cursor: 'row-resize', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+          }, h('div', { style: { width: 36, height: 3, borderRadius: 2, background: 'rgba(127,127,127,0.35)' } })),
           h('div', { style: sectionHeading }, T.extraLabel),
           h('textarea', {
             value: extra,
@@ -953,7 +1007,7 @@ window.__ModuleLoader__.load({
             onChange: (e) => setExtra(e.target.value),
             style: {
               width: '100%', boxSizing: 'border-box', padding: '8px 10px', fontSize: 12,
-              borderRadius: 8, resize: 'vertical', minHeight: 46, fontFamily: 'inherit',
+              borderRadius: 8, resize: 'none', flex: '1 1 auto', minHeight: 40, fontFamily: 'inherit',
               border: '1px solid ' + (extra.trim()
                 ? 'var(--dsw-alias-state-business-primary)'
                 : 'var(--dsw-alias-border-l1)'),
