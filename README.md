@@ -2,7 +2,7 @@
 
 一个 DeepSeek Harness（DSH）Web 客户端插件：把「先提问、再计划」的两阶段协作流程搬到右侧边栏的决策面板里，用**一次点击**确认整批内容。
 
-[English](#english) · 插件源码在 [`better-plan/`](better-plan/) · 变更记录见 [CHANGELOG.md](CHANGELOG.md)
+[English](#english) · 插件源码在 [`better-plan/`](better-plan/) · 可移植技能在 [`better-plan-skill/`](better-plan-skill/) · 变更见 [CHANGELOG.md](CHANGELOG.md) · 第三方来源见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 
 ## 它解决什么
 
@@ -52,6 +52,21 @@ git clone <repo-url> better-plan-workspace
 
 安装细节、设置说明与已知限制见 [better-plan/README.md](better-plan/README.md)。
 
+## 可移植技能（任意智能体）
+
+同一套纪律还有一个**不依赖 DSH、不需要任何工具**的纯提示版本：[`better-plan-skill/`](better-plan-skill/)。
+它把面板换成对话内的编号选项 + 一次「全部按推荐」确认，适用于 Claude Code、Codex CLI、Cursor 或任意
+系统提示，装法见 [better-plan-skill/README.md](better-plan-skill/README.md)。
+
+```text
+Q1 — 存储格式
+A. SQLite（单文件、零配置）   ← 推荐
+B. Postgres（要起服务）
+→ 推荐 A：仓库已用 SQLite，没有服务端。
+
+回复「全部按推荐」一次确认，或逐条回答，例如「Q1B」。
+```
+
 ## 目录结构
 
 ```
@@ -62,6 +77,11 @@ git clone <repo-url> better-plan-workspace
 ├── README.md                  # 本文件
 ├── .editorconfig / .gitattributes
 ├── .github/workflows/test.yml # CI：语法检查 + node --test
+├── THIRD_PARTY_NOTICES.md     # 改写自 mattpocock/skills 的 MIT 声明
+├── better-plan-skill/         # 可移植技能（非 DSH 智能体）
+│   ├── SKILL.md               # 两阶段流程本体
+│   ├── references/            # grilling / domain-modeling
+│   └── README.md              # 安装与差异说明
 ├── docs/agents/               # 领域文档与 issue tracker 约定
 │   ├── domain.md
 │   └── issue-tracker.md
@@ -92,6 +112,24 @@ npm test        # 31 个用例：状态机、门禁、CSRF、会话隔离、持�
 纯逻辑在 [`lib/core.js`](better-plan/lib/core.js)，host 侧 [`index.js`](better-plan/index.js) 只做 I/O 与鉴权，
 客户端 [`client.js`](better-plan/client.js) 负责渲染与轮询。CI 在每次 push / PR 时跑同样的检查。
 
+## 来源与致谢
+
+插件内置的纪律文本并非全部原创，表里写明每个部分的出处（完整 MIT 文本见
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)）：
+
+| 纪律 | 出处 | 在本仓库哪里 |
+|---|---|---|
+| **grilling**（设计树 / 前沿 / 分轮提问） | [mattpocock/skills `skills/productivity/grilling`](https://github.com/mattpocock/skills/blob/main/skills/productivity/grilling/SKILL.md)（MIT） | [disciplines.js](better-plan/disciplines.js) 的 `GRILLING_ASKING`；[better-plan-skill/references/grilling.md](better-plan-skill/references/grilling.md) |
+| **domain-modeling**（术语校准 / GLOSSARY / ADR） | [mattpocock/skills `skills/engineering/domain-modeling`](https://github.com/mattpocock/skills/blob/main/skills/engineering/domain-modeling/SKILL.md)（MIT） | [disciplines.js](better-plan/disciplines.js) 的 `DOMAIN_MODELING`；[better-plan-skill/references/domain-modeling.md](better-plan-skill/references/domain-modeling.md) |
+| **plan mode**（有序计划 + 验证方式 + 确认后才实施） | 本项目原创 | [disciplines.js](better-plan/disciplines.js) 的 `PLAN_MODE` |
+| **两阶段流程 / 面板确认 / 自定义答案必须追问 / 聊天只报数量** | 本项目原创 | 面板与 [better-plan/lib/core.js](better-plan/lib/core.js)、[better-plan/client.js](better-plan/client.js) |
+
+两点说明：
+
+- 改写方式：去掉上游 frontmatter，把「在聊天里提问」改写成「发布到右侧面板、预选选项、一次批量确认」，
+  并把推荐答案变成预选选项；领域建模部分压缩为可注入的系统提示。
+- 文本**冻结在编写时的时间点**，上游更新不会自动同步；需要跟进时按上表逐段 diff。
+
 ## 安全模型
 
 - 面板写接口只服务 loopback Host，要求 `application/json`（跨站 `no-cors` 请求会被预检拦截）、
@@ -121,3 +159,8 @@ same-origin write API, and 31 tests covering the state machine, gates, CSRF and 
 
 Install with `plugin_manager`'s `install_bundle`, pointing `target` at the absolute path of the
 `better-plan/` directory, then restart DSH and refresh the page. See [better-plan/README_en.md](better-plan/README_en.md).
+
+A tool-free, panel-free version of the same discipline ships in [`better-plan-skill/`](better-plan-skill/)
+for Claude Code, Codex CLI, Cursor or any system prompt. The grilling and domain-modeling disciplines
+are adapted from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT); see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

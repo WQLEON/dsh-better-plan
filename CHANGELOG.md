@@ -2,6 +2,22 @@
 
 本项目的版本变化。版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## 未发布
+
+### 新增
+
+- `better-plan-skill/`：不依赖 DSH、不需要任何工具的可移植技能——`SKILL.md`（两阶段流程、轮次规则、确认语义）、
+  `references/grilling.md`、`references/domain-modeling.md` 与安装说明，可用于 Claude Code、Codex CLI、Cursor
+  或任意系统提示。
+- `THIRD_PARTY_NOTICES.md`：列明改写自 [mattpocock/skills](https://github.com/mattpocock/skills)（MIT）的部分、
+  改写方式与完整 MIT 文本。
+
+### 文档
+
+- README 新增「可移植技能（任意智能体）」与「来源与致谢」两节。
+- `better-plan/README.md` 与 `README_en.md` 补来源说明与可移植版本入口。
+- 插件运行时行为无变化，`better-plan` 版本仍为 1.1.0。
+
 ## 1.1.0 — 2026-11-27
 
 ### 修复

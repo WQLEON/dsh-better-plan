@@ -22,3 +22,13 @@ jobs:
           node --check lib/core.js
       - name: State machine and host tests
         run: node --test
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate portable skill
+        run: node scripts/validate-skill.mjs

@@ -60,6 +60,15 @@ cd better-plan && npm test
 
 `lib/core.js` is the tested state machine; `index.js` is I/O plus guards; `client.js` renders and polls with conditional GETs.
 
+## Sources
+
+The grilling and domain-modeling disciplines are adapted from
+[mattpocock/skills](https://github.com/mattpocock/skills) (MIT, Copyright © 2026 Matt Pocock); the
+plan mode and the two-phase flow are original. See
+[THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) for the line-by-line mapping and the full license.
+A tool-free, panel-free version of the same discipline ships in
+[`better-plan-skill/`](../better-plan-skill/).
+
 ## Known limits
 
 - Chinese and English UI copy (follows the DSH interface language, other languages fall back to English); strings live in `client.js` per the DSH client-bundle convention, `locale/*.json` carries only `meta`.

@@ -99,6 +99,15 @@ npm test          # node --test，31 个用例：状态机 + host 路由/门禁/
 
 纯逻辑在 `lib/core.js`，host 侧 `index.js` 只做 I/O 与鉴权，客户端 `client.js` 负责渲染与轮询（条件 GET，空闲时返回 304）。
 
+## 来源
+
+纪律文本不是全部原创：grilling 与 domain-modeling 改写自
+[mattpocock/skills](https://github.com/mattpocock/skills)（MIT，Copyright © 2026 Matt Pocock），
+plan mode 与两阶段流程为本项目原创。逐条对照与完整 MIT 文本见仓库根
+[THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)。
+
+不想装插件、只想用这套纪律？见不依赖 DSH 的可移植版本 [../better-plan-skill/](../better-plan-skill/)。
+
 ## 已知限制
 
 - 面板文案支持中文与英文，跟随 DSH 界面语言；其他语言回落英文（字符串在 `client.js`，符合 DSH 客户端插件的惯例，`locale/*.json` 只放 `meta`）
