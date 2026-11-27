@@ -19,7 +19,7 @@ git clone <repo-url> better-plan-workspace
 
 把 `plugin_manager` 的 `install_bundle` 的 `target` 指向 clone 出来的 `better-plan` 目录（**绝对路径**），
 返回 `applied` 后重启 DSH（或用 `dsh-unlag` 刷新），再刷新页面。链接安装的目录改代码即生效，
-不需要重新安装。
+不需要重新安装。安装过程由 `plugin_manager` 调用 pnpm 完成，可能仍需要网络；插件运行期不联网。
 
 ## 从发行包安装到另一台电脑
 

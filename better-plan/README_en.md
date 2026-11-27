@@ -19,7 +19,8 @@ git clone <repo-url> better-plan-workspace
 
 Point `plugin_manager`'s `install_bundle` `target` at the cloned **absolute path** of the `better-plan`
 directory, restart DSH (or use `dsh-unlag`'s reload), then refresh the page. A linked install picks up
-code changes without reinstalling.
+code changes without reinstalling. `plugin_manager` installs through pnpm, which may need the network;
+the plugin itself never does.
 
 ## Install from a release zip
 

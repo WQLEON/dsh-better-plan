@@ -78,7 +78,7 @@ git clone <repo-url> better-plan-workspace
     ├── docs/preview.svg
     ├── icon.svg
     ├── README.md / README_en.md
-    └── node_modules/          # 内置 schemastery，离线可用
+    └── node_modules/          # 内置 schemastery（运行期无需联网）
 ```
 
 ## 开发与测试
