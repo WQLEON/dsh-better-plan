@@ -161,6 +161,13 @@ export function apply(ctx, config) {
 
   const states = new Map()
   const sectionDisposers = new Set()
+  // A session that wrote questions or a plan in chat without publishing gets one
+  // short correction note on its next request. Cleared by the next real publish
+  // and expired after ten minutes, so it can never become a permanent prompt block.
+  const notices = new Map()
+  const publishedSinceUser = new Set()
+  const NOTICE_TTL_MS = 10 * 60 * 1000
+  const NOTICE_TEXT = 'NOTE: your previous reply wrote questions or plan content in chat without publishing. Publish with the panel tools; in chat reply only with the one-sentence template.'
 
   const registerDisposer = (disposable) => {
     if (typeof disposable === 'function') sectionDisposers.add(disposable)
@@ -329,9 +336,11 @@ export function apply(ctx, config) {
           pendingDecisions: state.decisions.filter((d) => d.status === 'pending').length,
         }
       }
+      notices.delete(sessionRaw)
       return { ...outcome.result, persisted: commitState(key, outcome.state) }
     }
     const outcome = publishDecisions(state, items, settings)
+    notices.delete(sessionRaw)
     return { ...outcome.result, persisted: commitState(key, outcome.state) }
   }
 
@@ -442,6 +451,54 @@ export function apply(ctx, config) {
     return []
   }
 
+  const noticeFor = (sessionId) => {
+    const entry = notices.get(sessionId)
+    if (!entry) return ''
+    if (Date.now() - entry.at > NOTICE_TTL_MS) {
+      notices.delete(sessionId)
+      return ''
+    }
+    return entry.text
+  }
+
+  const assistantText = (message) => (Array.isArray(message?.content) ? message.content : [])
+    .filter((part) => part?.type === 'text')
+    .map((part) => part.text ?? '')
+    .join('')
+    .trim()
+
+  // Deliberately conservative: a long reply that asks questions or lists options
+  // counts as panel content. Short factual answers never trigger it.
+  const looksLikePanelContent = (text) => text.length >= 20
+    && (/[?？]/.test(text) || /(^|\n)\s*[A-D][.、)]/.test(text) || /选项|推荐/.test(text))
+
+  const onSessionEvent = (session, event) => {
+    try {
+      if (!enabled) return
+      const sessionId = typeof session?.id === 'string' ? session.id : ''
+      if (!sessionId || !event || typeof event.type !== 'string') return
+      if (event.type === 'user/message') {
+        publishedSinceUser.delete(sessionId)
+        return
+      }
+      if (event.type === 'tool/call') {
+        const name = event.data?.name ?? event.data?.call?.name ?? ''
+        if (typeof name === 'string' && name.startsWith('better_plan_publish_')) {
+          publishedSinceUser.add(sessionId)
+          notices.delete(sessionId)
+        }
+        return
+      }
+      if (event.type === 'assistant/message') {
+        if (publishedSinceUser.has(sessionId)) return
+        if (looksLikePanelContent(assistantText(event.data?.message))) {
+          notices.set(sessionId, { at: Date.now(), text: NOTICE_TEXT })
+        }
+      }
+    } catch { /* best effort: never break the session */ }
+  }
+  ctx.on('session/event', onSessionEvent)
+
   const attach = (agent) => {
     if (!agent || attachedAgents.has(agent)) return
     const prompt = agent?.ctx?.get?.('systemPrompt')
@@ -451,7 +508,12 @@ export function apply(ctx, config) {
       name: SECTION_NAME,
       order: SECTION_ORDER,
       interpolate: false,
-      text: (scope) => (scope?.scope === agent && enabled ? disciplines : ''),
+      text: (scope) => {
+        if (scope?.scope !== agent || !enabled) return ''
+        const sessionId = sessionIdOf(agent)
+        const notice = sessionId ? noticeFor(sessionId) : ''
+        return notice ? `${disciplines}\n\n${notice}` : disciplines
+      },
     }))
   }
   ctx.on('agent/created', ({ agent }) => attach(agent))
@@ -544,16 +606,20 @@ export function apply(ctx, config) {
               ok: false, code: outcome.code, message: GATE_MESSAGES[outcome.code], ...view(state, session),
             })
           }
-          const persisted = commitState(session.key, outcome.state)
+          notices.delete(session.raw)
+          notices.delete(session.raw)
+        const persisted = commitState(session.key, outcome.state)
           return sendJson(res, 200, { ...view(outcome.state, session, persisted), ...outcome.result, persisted })
         }
         const outcome = publishDecisions(state, body?.items ?? body?.decisions, settings)
+        notices.delete(session.raw)
         const persisted = commitState(session.key, outcome.state)
         return sendJson(res, 200, { ...view(outcome.state, session, persisted), ...outcome.result, persisted })
       }
 
       if (action === 'confirmAll') {
         const outcome = confirmAll(state, body, settings)
+        notices.delete(session.raw)
         const persisted = commitState(session.key, outcome.state)
         const woken = wakeAgent(outcome.feedback, session.raw)
         return sendJson(res, 200, {
@@ -573,6 +639,7 @@ export function apply(ctx, config) {
           const status = outcome.code === 'not_found' ? 404 : 400
           return sendJson(res, status, { error: outcome.code })
         }
+        notices.delete(session.raw)
         const persisted = commitState(session.key, outcome.state)
         const woken = wakeAgent(outcome.feedback, session.raw)
         return sendJson(res, 200, { ...view(outcome.state, session, persisted), ok: true, item: outcome.item, woken, persisted })

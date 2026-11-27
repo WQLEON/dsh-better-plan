@@ -42,6 +42,7 @@ Rules:
 - Number the questions Q1, Q2, … and continue the sequence in later rounds; never restart at Q1 and never reuse a number.
 - Keep each round to at most 10 questions; split a larger frontier across rounds.
 - Options are REAL candidates only (at least one, usually 2–3). Never add a placeholder such as "其他想法…" or "Other idea…": the chat already lets the user answer freely.
+- The question text holds only the question itself — never list the options inside it.
 - `all recommended` / `全部按推荐` / a bare `yes` accepts every recommended default at once.
 
 ## 2. A custom answer is never final

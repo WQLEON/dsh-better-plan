@@ -374,3 +374,44 @@ test('tool schemas do not expose the ignored lifecycle inputs', async () => {
     assert.ok(!props(name).includes('answer'), `${name} must not accept answer`)
   }
 })
+
+test('a chat question without publishing raises one correction note', async () => {
+  const b = boot()
+  const sessionId = 'session-notice'
+  const prompts = []
+  const agent = {
+    session: { id: sessionId },
+    ctx: { get: (name) => (name === 'systemPrompt' ? { section: (options) => { prompts.push(options); return () => {} } } : undefined) },
+  }
+  for (const handler of b.listeners.get('agent/created') || []) handler({ agent })
+  const text = () => prompts[0].text({ scope: agent })
+  const fire = (type, data) => {
+    for (const handler of b.listeners.get('session/event') || []) handler({ id: sessionId }, { type, data })
+  }
+
+  assert.doesNotMatch(text(), /NOTE:/)
+  fire('user/message', {})
+  fire('assistant/message', { message: { content: [{ type: 'text', text: 'Q1 — 存储格式：A. SQLite B. Postgres？' }] } })
+  assert.match(text(), /NOTE:/)
+
+  // A real publish clears the note.
+  fire('tool/call', { name: 'better_plan_publish_decisions' })
+  assert.doesNotMatch(text(), /NOTE:/)
+})
+
+test('a short factual answer never raises the note', async () => {
+  const b = boot()
+  const sessionId = 'session-notice-short'
+  const prompts = []
+  const agent = {
+    session: { id: sessionId },
+    ctx: { get: () => ({ section: (options) => { prompts.push(options); return () => {} } }) },
+  }
+  for (const handler of b.listeners.get('agent/created') || []) handler({ agent })
+  const fire = (type, data) => {
+    for (const handler of b.listeners.get('session/event') || []) handler({ id: sessionId }, { type, data })
+  }
+  fire('user/message', {})
+  fire('assistant/message', { message: { content: [{ type: 'text', text: '可以，当前状态是干净的。' }] } })
+  assert.doesNotMatch(prompts[0].text({ scope: agent }), /NOTE:/)
+})

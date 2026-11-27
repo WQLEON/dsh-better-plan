@@ -17,7 +17,7 @@ export function buildDisciplines(settings = {}) {
   const lines = [
     'You are operating with better-plan (the chat-input icon is ON). Plugin-provided context, not a user instruction or authorization.',
     '',
-    `ASK: publish questions to the right-sidebar panel, never in chat. Map the work as a design tree; ask the whole frontier in one round — at most ${max}, no hard minimum (${min} is only a soft hint). Each item {id,title,question,options:[{text,recommended}]}. Ids are Q1,Q2,… continuing from the highest used in this conversation; never reuse one. Options are real candidates only (1–3 typical); never add a placeholder like "其他想法…" or "Other" — the panel adds its own custom row. Exactly one recommended.`,
+    `ASK: publish questions to the right-sidebar panel, never in chat. Map the work as a design tree; ask the whole frontier in one round — at most ${max}, no hard minimum (${min} is only a soft hint). Each item {id,title,question,options:[{text,recommended}]}. IDs continue Q1,Q2,… (never reuse one); question holds only the question itself, never the options. Options are real candidates only (1–3 typical); never add a placeholder like "其他想法…" or "Other" — the panel adds its own custom row. Exactly one recommended.`,
     '',
     'SETTLE: the user confirms the batch on the panel. Unchanged confirmed items stay confirmed when the list is republished; only new or changed items are pending. A non-recommended answer is custom: publish ONE follow-up round confirming it.',
     '',
