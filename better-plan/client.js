@@ -830,6 +830,15 @@ window.__ModuleLoader__.load({
           }
         },
       },
+        h('style', null, [
+          '.bp-bar-btn { background: rgba(127,127,127,0.12); border: 1px solid rgba(127,127,127,0.28); border-radius: 8px; padding: 5px 9px; font-size: 12px; line-height: 1; cursor: pointer; color: inherit; }',
+          '.bp-bar-btn:hover:not(:disabled) { background: rgba(127,127,127,0.22); }',
+          '.bp-bar-btn:disabled { opacity: 0.4; cursor: not-allowed; }',
+          '.bp-danger { color: var(--dsw-alias-state-error-primary, #d33); border-color: currentColor; }',
+          '.bp-round { font-size: 11px; padding: 3px 8px; border-radius: 999px; background: rgba(127,127,127,0.12); }',
+          '.bp-primary { transition: filter 0.15s ease; }',
+          '.bp-primary:hover:not(:disabled) { filter: brightness(1.08); }',
+        ].join('\n')),
         h('div', {
           style: {
             flex: 'none', display: 'flex', alignItems: 'center', gap: 6,
@@ -843,32 +852,32 @@ window.__ModuleLoader__.load({
           h('div', { style: { display: 'flex', alignItems: 'center', gap: 6 } },
             h('h3', { style: { margin: 0, fontSize: 15 } }, T.panel),
             h('button', {
-              type: 'button', style: ghostBtn, title: T.prevRound,
+              type: 'button', className: 'bp-bar-btn', title: T.prevRound,
               disabled: shownRound <= 1, onClick: () => setViewRound(Math.max(1, shownRound - 1)),
             }, '‹'),
             h('button', {
-              type: 'button', style: ghostBtn, title: T.nextRound,
+              type: 'button', className: 'bp-bar-btn', title: T.nextRound,
               disabled: shownRound >= currentRound, onClick: () => setViewRound(Math.min(currentRound, shownRound + 1)),
             }, '›'),
-            h('span', { style: { fontSize: 11, opacity: 0.65 } }, fill(T.round, shownRound))),
+            h('span', { className: 'bp-round' }, fill(T.round, shownRound))),
           h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' } },
           h('button', {
             type: 'button',
-            style: discardArmed ? dangerBtn : ghostBtn,
+            className: discardArmed ? 'bp-bar-btn bp-danger' : 'bp-bar-btn',
             title: T.discard,
             onClick: discard,
             disabled: busy,
           }, discardArmed ? T.discardConfirm : T.discard),
           h('button', {
             type: 'button',
-            style: ghostBtn,
+            className: 'bp-bar-btn',
             title: T.resetHint,
             onClick: reset,
             disabled: busy,
           }, resetArmed ? T.resetConfirm : T.reset),
           h('button', {
             type: 'button',
-            style: ghostBtn,
+            className: 'bp-bar-btn',
             title: T.refreshHint,
             disabled: busy || refreshing,
             onClick: async () => {
@@ -913,7 +922,7 @@ window.__ModuleLoader__.load({
           style: { flex: 'none', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px', boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
         },
           h('div', { style: { fontSize: 12, opacity: 0.75, marginBottom: 8 } }, T.history),
-          h('button', { type: 'button', style: { ...primaryBtn, width: '100%', height: 36 }, onClick: () => setViewRound(null) }, T.backToCurrent)
+          h('button', { type: 'button', className: 'bp-primary', style: { ...primaryBtn, width: '100%', height: 36 }, onClick: () => setViewRound(null) }, T.backToCurrent)
         ) : h('div', {
           style: { flex: 'none', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px', display: 'flex', flexDirection: 'column', gap: 6, boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
         },
@@ -938,6 +947,7 @@ window.__ModuleLoader__.load({
           const label = extra.trim() ? T.submitWithExtra : T.confirmAll
           return h('button', {
             type: 'button',
+            className: 'bp-primary',
             style: {
               ...primaryBtn, width: '100%', height: 40, fontSize: 13, marginTop: 2,
               ...(canSubmit ? {} : {
