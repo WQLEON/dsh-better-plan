@@ -569,7 +569,11 @@ export function confirmAll(state, input, settings) {
  */
 export function recordReport(state, text) {
   const next = cloneState(state)
-  if (!next.awaitingReport) return { ok: false }
+  if (next.roundDone) return { ok: false }
+  if (!next.timeline.some((entry) => entry.round === next.round && entry.kind === 'plan')) return { ok: false }
+  if (next.plan.length === 0 || next.plan.some((item) => item.status === 'pending')) return { ok: false }
+  if (next.decisions.some((item) => item.status === 'pending')) return { ok: false }
+  if (next.awaitingFollowup) return { ok: false }
   next.awaitingReport = false
   next.roundDone = true
   appendEntry(next, 'report', [], { text: textOf(text, 4000) })

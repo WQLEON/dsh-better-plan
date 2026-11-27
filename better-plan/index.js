@@ -515,7 +515,7 @@ export function apply(ctx, config) {
         const key = sessionKey(sessionId)
         try {
           const current = states.get(key)
-          if (current?.awaitingReport) {
+          if (current) {
             const recorded = recordReport(current, lastAssistant.get(sessionId) ?? '')
             if (recorded.ok) commitState(key, recorded.state)
           }

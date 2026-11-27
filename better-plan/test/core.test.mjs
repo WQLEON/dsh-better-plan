@@ -364,3 +364,16 @@ test('a plan settled alongside a requirement still waits for its report', () => 
   state = recordReport(state, '执行报告').state
   assert.equal(state.roundDone, true)
 })
+
+test('the execution report records whenever the round is settled', () => {
+  let state = publishDecisions(emptyState(), questions(2), settings).state
+  state = confirmAll(state, { answers: {} }, settings).state
+  state = publishPlan(state, [{ id: 'P1', title: 'step', detail: 'd' }], settings).state
+  state = confirmAll(state, { answers: {} }, settings).state
+  const recorded = recordReport(state, '执行报告')
+  assert.equal(recorded.ok, true)
+  assert.equal(recorded.state.roundDone, true)
+  assert.equal(recorded.state.timeline.at(-1).kind, 'report')
+  // A second report in the same round is refused.
+  assert.equal(recordReport(recorded.state, 'again').ok, false)
+})
