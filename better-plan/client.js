@@ -966,7 +966,7 @@ window.__ModuleLoader__.load({
             const node = event.currentTarget
             stickRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 40
           },
-          style: { flex: '1 1 auto', minHeight: 0, overflowY: 'auto', padding: '16px 16px 0', display: 'flex', flexDirection: 'column', gap: 14 },
+          style: { flex: '1 1 auto', minHeight: 0, overflowY: 'auto', padding: '16px 16px 0', paddingBottom: barHeight + 16, display: 'flex', flexDirection: 'column', gap: 14 },
         },
         h('div', { 'aria-live': 'polite', style: visuallyHidden }, announcement),
 
