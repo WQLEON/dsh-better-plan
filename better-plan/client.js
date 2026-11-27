@@ -640,13 +640,13 @@ window.__ModuleLoader__.load({
         const host = node && node.parentElement
         const viewport = typeof window !== 'undefined' ? window.innerHeight : 800
         const measured = host && host.clientHeight > 0 ? host.clientHeight : (node && node.clientHeight > 0 ? node.clientHeight : viewport)
-        return Math.max(140, Math.min(measured, viewport) - 56)
+        return Math.max(150, Math.min(measured, viewport) - 56)
       }
       const barKey = 'better-plan:bar-height'
       const [barHeight, setBarHeight] = React.useState(() => {
         try {
           const saved = Number(localStorage.getItem(barKey))
-          return Number.isFinite(saved) && saved >= 140 ? saved : 190
+          return Number.isFinite(saved) && saved >= 150 ? saved : 190
         } catch { return 190 }
       })
       const [panelHeight, setPanelHeight] = React.useState(null)
@@ -732,7 +732,7 @@ window.__ModuleLoader__.load({
         const startY = event.clientY
         const startHeight = barHeight
         const onMove = (move) => {
-          const next = Math.min(Math.max(startHeight - (move.clientY - startY), 140), maxBarHeight())
+          const next = Math.min(Math.max(startHeight - (move.clientY - startY), 150), maxBarHeight())
           setBarHeight(next)
           try { localStorage.setItem(barKey, String(next)) } catch { /* ignore */ }
         }
@@ -1035,7 +1035,7 @@ window.__ModuleLoader__.load({
           h('div', { style: { fontSize: 12, opacity: 0.75, marginBottom: 8 } }, T.history),
           h('button', { type: 'button', className: 'bp-primary', style: { ...primaryBtn, width: '100%', height: 36 }, onClick: () => setViewRound(null) }, T.backToCurrent)
         ) : h('div', {
-          style: { flex: 'none', minHeight: 140, height: barHeight, maxHeight: 'calc(100% - 56px)', position: 'relative', overflow: 'hidden', boxSizing: 'border-box', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 68px', display: 'flex', flexDirection: 'column', gap: 6, boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
+          style: { flex: 'none', minHeight: 150, height: barHeight, maxHeight: 'calc(100% - 56px)', position: 'relative', overflow: 'hidden', boxSizing: 'border-box', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 68px', display: 'flex', flexDirection: 'column', gap: 6, boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
         },
           h('div', {
             onMouseDown: startBarResize,
