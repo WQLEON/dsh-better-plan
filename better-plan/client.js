@@ -343,7 +343,9 @@ window.__ModuleLoader__.load({
       useLang()
       const settled = item.status !== 'pending'
       const options = Array.isArray(item.options) ? item.options : []
-      const rows = options.map((option) => ({ text: option.text, isOther: false }))
+      const rows = kind === 'plan' && options.length === 0
+        ? [{ text: item.detail || '', isOther: false }]
+        : options.map((option) => ({ text: option.text, isOther: false }))
       const recommendedIndex = Math.max(0, options.findIndex((o) => o.recommended))
       const other = draft?.other === '1'
       const selected = typeof draft?.selected === 'number' ? draft.selected : recommendedIndex
@@ -427,7 +429,7 @@ window.__ModuleLoader__.load({
           }) : null
         ))
       }
-      if (kind === 'plan' && item.detail) {
+      if (settled && kind === 'plan' && item.detail) {
         body.push(h('div', {
           key: 'detail',
           style: { fontSize: 12, whiteSpace: 'pre-wrap', lineHeight: 1.6, opacity: 0.9 },
