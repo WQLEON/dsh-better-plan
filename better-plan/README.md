@@ -4,7 +4,7 @@ DSH Web 客户端插件：右侧边栏的决策面板 + 输入框功能开关图
 
 ## 版本
 
-当前版本 **1.2.0**；变更记录见仓库根 [CHANGELOG.md](../CHANGELOG.md)。
+当前版本 **1.3.0**；变更记录见仓库根 [CHANGELOG.md](../CHANGELOG.md)。
 
 ## 从源码仓库安装（开发用，推荐）
 
@@ -68,6 +68,7 @@ curl -s http://127.0.0.1:<port>/plugins/better-plan/state
 | `Ctrl+Enter` | 等同于点「全部确认」 |
 | 「其他要求」 | 提交后智能体先追问，不会直接实施 |
 | 「重置本会话面板」 | 清空当前会话的问题与计划（连点两次确认），不影响其他窗口 |
+| 无待确认项时 | 「全部确认」仍显示在底栏，灰色不可点 |
 | 已确认的条目 | 下一轮重新发布时保持「已确认」（灰显），不会被再次要求确认 |
 | 「其他要求」+「全部确认」 | 固定在面板底部，内容区独立滚动，始终可达 |
 
@@ -91,7 +92,7 @@ curl -s http://127.0.0.1:<port>/plugins/better-plan/state
 
 ```bash
 cd better-plan
-npm test          # node --test，39 个用例：状态机/合并/续号 + host 路由/门禁/CSRF/会话隔离
+npm test          # node --test，41 个用例：状态机/合并/续号 + host 路由/门禁/CSRF/会话隔离
 ```
 
 纯逻辑在 `lib/core.js`，host 侧 `index.js` 只做 I/O 与鉴权，客户端 `client.js` 负责渲染与轮询（条件 GET，空闲时返回 304）。

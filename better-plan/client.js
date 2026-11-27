@@ -685,13 +685,27 @@ window.__ModuleLoader__.load({
           }),
           extra.trim() ? h('div', { style: { fontSize: 11, opacity: 0.7 } }, T.extraHint) : null,
 
-        pendingTotal > 0 || extra.trim() ? h('button', {
-          type: 'button',
-          style: { ...primaryBtn, width: '100%', height: 40, fontSize: 13, marginTop: 2 },
-          disabled: busy,
-          'aria-busy': busy,
-          onClick: confirmBatch,
-        }, extra.trim() ? T.submitWithExtra : `${T.confirmAll}（${pendingTotal}）`) : null
+        (() => {
+          const canSubmit = !busy && (pendingTotal > 0 || Boolean(extra.trim()))
+          const label = extra.trim() ? T.submitWithExtra : T.confirmAll
+          return h('button', {
+            type: 'button',
+            style: {
+              ...primaryBtn, width: '100%', height: 40, fontSize: 13, marginTop: 2,
+              ...(canSubmit ? {} : {
+                background: 'var(--dsw-alias-bg-layer-3, transparent)',
+                color: 'var(--dsw-alias-label-tertiary, inherit)',
+                borderColor: 'var(--dsw-alias-border-l1, transparent)',
+                cursor: 'not-allowed',
+                opacity: 0.6,
+              }),
+            },
+            disabled: !canSubmit,
+            'aria-disabled': !canSubmit,
+            'aria-busy': busy,
+            onClick: confirmBatch,
+          }, label)
+        })()
         )
       )
     }

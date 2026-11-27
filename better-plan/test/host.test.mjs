@@ -256,7 +256,7 @@ test('the discipline section is empty while the feature is off', async () => {
   for (const handler of b.listeners.get('agent/created') || []) handler({ agent })
   assert.equal(prompts.length, 1)
   const text = () => prompts[0].text({ scope: agent })
-  assert.match(text(), /better-plan discipline auto-applied/)
+  assert.match(text(), /You are operating with better-plan/)
   await b.call('/plugins/better-plan/toggle', fakeReq({
     method: 'POST',
     headers: headers({ 'content-type': 'application/json', 'x-better-plan-token': token }),
@@ -280,7 +280,7 @@ test('settings persist in memory and rebuild the injected discipline', async () 
   assert.equal(saved.status, 200)
   assert.equal(saved.json.settings.minPerRound, 4)
   assert.equal(saved.json.settings.maxPerRound, 6)
-  assert.match(prompts[0].text({ scope: agent }), /between 4 and 6 questions/)
+  assert.match(prompts[0].text({ scope: agent }), /at most 6, no hard minimum \(4 is only a soft hint\)/)
 })
 
 test('state survives a plugin reload through the per-session file', async () => {
@@ -364,4 +364,13 @@ test('a changed question is reopened while the others stay confirmed', async () 
   assert.equal(again.json.reopened, 1)
   assert.equal(again.json.kept, 1)
   assert.deepEqual(again.json.decisions.map((d) => d.status), ['pending', 'confirmed'])
+})
+
+test('tool schemas do not expose the ignored lifecycle inputs', async () => {
+  const b = boot()
+  const props = (name) => Object.keys(b.tools.get(name).parameters.properties.items.items.properties)
+  for (const name of ['better_plan_publish_decisions', 'better_plan_publish_items']) {
+    assert.ok(!props(name).includes('status'), `${name} must not accept status`)
+    assert.ok(!props(name).includes('answer'), `${name} must not accept answer`)
+  }
 })

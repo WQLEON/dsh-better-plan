@@ -337,7 +337,7 @@ export function apply(ctx, config) {
 
   const optionSchema = {
     type: 'array',
-    description: 'Clickable answer options. Exactly one must set recommended: true — the panel pre-selects it, so the whole batch settles with one click.',
+    description: 'Answer options; exactly one recommended (pre-selected).',
     items: {
       type: 'object',
       properties: {
@@ -351,7 +351,7 @@ export function apply(ctx, config) {
 
   const decisionTool = {
     name: 'better_plan_publish_decisions',
-    description: 'Publish the FULL current list of questions to the right-sidebar panel. Every question carries options and exactly one recommended option, which is pre-selected so the user settles the whole batch with a single click. Never ask these questions in chat. Ids are upper-case (Q1, Q2, …). New items use status "pending".',
+    description: 'Publish the full question list to the decision panel. Real options only (1–3 typical), exactly one recommended; ids continue Q1, Q2, … Never ask in chat.',
     parameters: {
       type: 'object',
       properties: {
@@ -360,12 +360,10 @@ export function apply(ctx, config) {
           items: {
             type: 'object',
             properties: {
-              id: { type: 'string', description: 'Upper-case id, e.g. Q1.' },
-              title: { type: 'string', description: 'Short question title.' },
+              id: { type: 'string', description: 'Question id, e.g. Q1.' },
+              title: { type: 'string', description: 'Short title.' },
               question: { type: 'string', description: 'Full question body.' },
               options: optionSchema,
-              status: { type: 'string', description: 'One of: pending, confirmed, rejected.' },
-              answer: { type: 'string', description: 'The chosen answer, when settled.' },
             },
             required: ['id', 'title'],
             additionalProperties: false,
@@ -390,7 +388,7 @@ export function apply(ctx, config) {
 
   const planTool = {
     name: 'better_plan_publish_items',
-    description: 'Publish the FULL ordered plan to the right-sidebar panel. The user settles every item with one click on the single batch button. Never discuss the plan in chat. Ids are upper-case (P1, P2, …). New items use status "pending". Do not implement until the plan is confirmed.',
+    description: 'Publish the full ordered plan to the decision panel. Each step names what changes and how to verify it; ids continue P1, P2, … Implement only after the user confirms.',
     parameters: {
       type: 'object',
       properties: {
@@ -399,11 +397,9 @@ export function apply(ctx, config) {
           items: {
             type: 'object',
             properties: {
-              id: { type: 'string', description: 'Upper-case id, e.g. P1.' },
+              id: { type: 'string', description: 'Step id, e.g. P1.' },
               title: { type: 'string', description: 'Short step title.' },
-              detail: { type: 'string', description: 'What to change and how to verify it.' },
-              status: { type: 'string', description: 'One of: pending, confirmed, rejected.' },
-              answer: { type: 'string', description: 'The chosen answer, when settled.' },
+              detail: { type: 'string', description: 'What changes and how to verify it.' },
             },
             required: ['id', 'title', 'detail'],
             additionalProperties: false,

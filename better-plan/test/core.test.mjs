@@ -252,3 +252,13 @@ test('reusing an existing id with new content reopens that slot (R2)', () => {
   assert.equal(again.result.reopened, 2)
   assert.deepEqual(again.state.decisions.map((d) => d.status), ['pending', 'pending'])
 })
+
+test('discipline text stays compact and carries both chat templates', async () => {
+  const { buildDisciplines } = await import('../disciplines.js')
+  const text = buildDisciplines({ minPerRound: 3, maxPerRound: 10, minTotal: 0 })
+  assert.ok(text.length < 3000, 'discipline must stay compact: ' + text.length + ' chars')
+  assert.match(text, /已提出 X 条问题待回复，请查看决策面板。/)
+  assert.match(text, /已发布 X 条计划待确认，请查看决策面板。/)
+  assert.match(text, /never reuse one/)
+  assert.match(text, /never add a placeholder/)
+})
