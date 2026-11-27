@@ -194,7 +194,14 @@ window.__ModuleLoader__.load({
     /* --------------------------------------------------------------- styling */
 
     const sectionHeading = { margin: '0 0 8px', fontSize: 13, fontWeight: 600, lineHeight: 1.5, color: 'inherit' }
-    const dividerStyle = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, opacity: 0.6, margin: '6px 0 2px' }
+    const dividerStyle = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, opacity: 0.8, margin: '6px 0 2px' }
+    const KIND_STYLE = {
+      questions: { line: '#247bbf', tint: 'rgba(36,123,191,0.07)' },
+      plan: { line: '#2e9e5b', tint: 'rgba(46,158,91,0.08)' },
+      requirement: { line: '#b47a10', tint: 'rgba(180,122,16,0.10)' },
+      report: { line: '#7b5cc4', tint: 'rgba(123,92,196,0.10)' },
+      discard: { line: '#8a8a8a', tint: 'rgba(138,138,138,0.08)' },
+    }
     const btnBase = {
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       borderRadius: 8, fontSize: 12, lineHeight: 1, cursor: 'pointer',
@@ -446,11 +453,14 @@ window.__ModuleLoader__.load({
           h('span', { style: { opacity: 0.7, marginRight: 6 } }, T.chosen + ':'), item.answer))
       }
 
+      const palette = kind === 'plan' ? KIND_STYLE.plan : KIND_STYLE.questions
       return h('div', {
         style: {
-          border: '1px solid var(--dsw-alias-border-l1, transparent)', borderRadius: 10,
+          border: '1px solid var(--dsw-alias-border-l1, transparent)',
+          borderLeft: '3px solid ' + palette.line,
+          borderRadius: 10,
           padding: 12, display: 'flex', flexDirection: 'column', gap: 8,
-          background: 'var(--dsw-alias-bg-layer-1, transparent)', opacity: settled ? 0.72 : 1,
+          background: palette.tint, opacity: settled ? 0.9 : 1,
         },
       },
         h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 } },
@@ -529,9 +539,11 @@ window.__ModuleLoader__.load({
       const time = entry.at ? new Date(entry.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
       return h('div', {
         style: {
-          border: '1px solid var(--dsw-alias-border-l1, transparent)', borderRadius: 10,
+          border: '1px solid var(--dsw-alias-border-l1, transparent)',
+          borderLeft: '3px solid ' + KIND_STYLE.report.line,
+          borderRadius: 10,
           padding: 12, display: 'flex', flexDirection: 'column', gap: 6,
-          background: 'var(--dsw-alias-bg-layer-1, transparent)', fontSize: 12, lineHeight: 1.6,
+          background: KIND_STYLE.report.tint, fontSize: 12, lineHeight: 1.6,
         },
       },
         h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 } },
@@ -773,16 +785,24 @@ window.__ModuleLoader__.load({
           return h(ReportCard, { key, entry, planIds: planIdsOf(entry) })
         }
         if (entry.kind === 'discard') {
-          return h('div', { key }, h('div', { style: dividerStyle }, T.discardEntry))
+          return h('div', { key }, h('div', { style: { ...dividerStyle, color: KIND_STYLE.discard.line } }, T.discardEntry))
         }
         if (entry.kind === 'requirement') {
-          return h('div', { key },
-            h('div', { style: dividerStyle }, T.requirementEntry),
-            h('div', { style: { fontSize: 12, whiteSpace: 'pre-wrap', opacity: 0.85, lineHeight: 1.6 } }, entry.text || ''))
+          return h('div', {
+            key,
+            style: {
+              borderLeft: '3px solid ' + KIND_STYLE.requirement.line,
+              background: KIND_STYLE.requirement.tint,
+              borderRadius: 8, padding: '8px 10px',
+            },
+          },
+            h('div', { style: { ...dividerStyle, margin: 0, color: KIND_STYLE.requirement.line } }, T.requirementEntry),
+            h('div', { style: { fontSize: 12, whiteSpace: 'pre-wrap', lineHeight: 1.6 } }, entry.text || ''))
         }
         const questions = entry.kind === 'questions'
+        const accent = questions ? KIND_STYLE.questions.line : KIND_STYLE.plan.line
         return h('div', { key },
-          h('div', { style: dividerStyle }, fill(questions ? T.batchQuestions : T.batchPlan, entry.batch)),
+          h('div', { style: { ...dividerStyle, color: accent } }, fill(questions ? T.batchQuestions : T.batchPlan, entry.batch)),
           h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
             (entry.items || []).map((snap) => {
               const live = liveById(snap.id)
@@ -816,18 +836,22 @@ window.__ModuleLoader__.load({
             padding: '10px 16px 8px',
             borderBottom: '1px solid var(--dsw-alias-border-l1, transparent)',
             background: 'var(--dsw-alias-bg-layer-1, transparent)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+            position: 'relative', zIndex: 2,
           },
         },
-          h('h3', { style: { margin: 0, fontSize: 15, marginRight: 'auto' } }, T.panel),
-          h('button', {
-            type: 'button', style: ghostBtn, title: T.prevRound,
-            disabled: shownRound <= 1, onClick: () => setViewRound(Math.max(1, shownRound - 1)),
-          }, '‹'),
-          h('button', {
-            type: 'button', style: ghostBtn, title: T.nextRound,
-            disabled: shownRound >= currentRound, onClick: () => setViewRound(Math.min(currentRound, shownRound + 1)),
-          }, '›'),
-          h('span', { style: { fontSize: 11, opacity: 0.65, minWidth: 44, textAlign: 'center' } }, fill(T.round, shownRound)),
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: 6 } },
+            h('h3', { style: { margin: 0, fontSize: 15 } }, T.panel),
+            h('button', {
+              type: 'button', style: ghostBtn, title: T.prevRound,
+              disabled: shownRound <= 1, onClick: () => setViewRound(Math.max(1, shownRound - 1)),
+            }, '‹'),
+            h('button', {
+              type: 'button', style: ghostBtn, title: T.nextRound,
+              disabled: shownRound >= currentRound, onClick: () => setViewRound(Math.min(currentRound, shownRound + 1)),
+            }, '›'),
+            h('span', { style: { fontSize: 11, opacity: 0.65 } }, fill(T.round, shownRound))),
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' } },
           h('button', {
             type: 'button',
             style: discardArmed ? dangerBtn : ghostBtn,
@@ -854,6 +878,7 @@ window.__ModuleLoader__.load({
               setTimeout(() => setRefreshing(false), 1500)
             },
           }, refreshing ? T.refreshed : T.refresh)
+          )
         ),
 
         h('div', {
@@ -885,12 +910,12 @@ window.__ModuleLoader__.load({
         h(SettingsSection, { settings: state?.settings || {}, onSave: saveSettings })
         ),
         !isCurrent ? h('div', {
-          style: { flex: 'none', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px' },
+          style: { flex: 'none', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px', boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
         },
           h('div', { style: { fontSize: 12, opacity: 0.75, marginBottom: 8 } }, T.history),
           h('button', { type: 'button', style: { ...primaryBtn, width: '100%', height: 36 }, onClick: () => setViewRound(null) }, T.backToCurrent)
         ) : h('div', {
-          style: { flex: 'none', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px', display: 'flex', flexDirection: 'column', gap: 6 },
+          style: { flex: 'none', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px', display: 'flex', flexDirection: 'column', gap: 6, boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
         },
           h('div', { style: sectionHeading }, T.extraLabel),
           h('textarea', {
