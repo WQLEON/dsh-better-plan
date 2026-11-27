@@ -173,13 +173,13 @@ test('a stale panel revision is refused instead of overwriting newer state', asy
 
 test('tools publish into the calling agent\'s session only', async () => {
   const b = boot()
-  const tool = b.tools.get('better_plan_publish_decisions')
-  const noAgent = await tool.execute({ items: [{ id: 'Q1', title: 't' }] }, {})
+  const tool = b.tools.get('better_plan_publish')
+  const noAgent = await tool.execute({ kind: 'decisions', items: [{ id: 'Q1', title: 't' }] }, {})
   assert.equal(noAgent.ok, false)
   assert.equal(noAgent.code, 'no_session')
 
   const agentA = { session: { id: 'session-tool-a' } }
-  await tool.execute({ items: [{ id: 'Q1', title: 'from tool' }] }, { agent: agentA })
+  await tool.execute({ kind: 'decisions', items: [{ id: 'Q1', title: 'from tool' }] }, { agent: agentA })
   const a = await state(b, { 'x-better-plan-session': 'session-tool-a' })
   const z = await state(b, { 'x-better-plan-session': 'session-tool-z' })
   assert.equal(a.json.decisions.length, 1)
@@ -189,15 +189,15 @@ test('tools publish into the calling agent\'s session only', async () => {
 
 test('the plan tool refuses to skip the asking phase', async () => {
   const b = boot()
-  const planTool = b.tools.get('better_plan_publish_items')
+  const planTool = b.tools.get('better_plan_publish')
   const agent = { session: { id: 'session-gate' } }
-  const refused = await planTool.execute({ items: [{ id: 'P1', title: 's', detail: 'd' }] }, { agent })
+  const refused = await planTool.execute({ kind: 'plan', items: [{ id: 'P1', title: 's', detail: 'd' }] }, { agent })
   assert.equal(refused.ok, false)
   assert.equal(refused.code, 'no_answers')
 
-  const decisionTool = b.tools.get('better_plan_publish_decisions')
-  await decisionTool.execute({ items: [{ id: 'Q1', title: 'q', options: [{ text: 'a', recommended: true }] }] }, { agent })
-  const stillPending = await planTool.execute({ items: [{ id: 'P1', title: 's', detail: 'd' }] }, { agent })
+  const decisionTool = b.tools.get('better_plan_publish')
+  await decisionTool.execute({ kind: 'decisions', items: [{ id: 'Q1', title: 'q', options: [{ text: 'a', recommended: true }] }] }, { agent })
+  const stillPending = await planTool.execute({ kind: 'plan', items: [{ id: 'P1', title: 's', detail: 'd' }] }, { agent })
   assert.equal(stillPending.code, 'questions_pending')
 })
 
@@ -378,13 +378,12 @@ test('a changed question keeps its confirmation and answer', async () => {
   assert.deepEqual(again.json.decisions.map((d) => d.answer), ['A', 'A'])
 })
 
-test('tool schemas do not expose the ignored lifecycle inputs', async () => {
+test('the tool schema does not expose the ignored lifecycle inputs', async () => {
   const b = boot()
-  const props = (name) => Object.keys(b.tools.get(name).parameters.properties.items.items.properties)
-  for (const name of ['better_plan_publish_decisions', 'better_plan_publish_items']) {
-    assert.ok(!props(name).includes('status'), `${name} must not accept status`)
-    assert.ok(!props(name).includes('answer'), `${name} must not accept answer`)
-  }
+  const props = Object.keys(b.tools.get('better_plan_publish').parameters.properties.items.items.properties)
+  assert.ok(!props.includes('status'), 'must not accept status')
+  assert.ok(!props.includes('answer'), 'must not accept answer')
+  assert.ok(b.tools.get('better_plan_publish').parameters.properties.kind, 'kind selects decisions or plan')
 })
 
 test('a chat question without publishing raises one correction note', async () => {
@@ -407,7 +406,7 @@ test('a chat question without publishing raises one correction note', async () =
   assert.match(text(), /NOTE:/)
 
   // A real publish clears the note.
-  fire('tool/call', { name: 'better_plan_publish_decisions' })
+  fire('tool/call', { name: 'better_plan_publish' })
   assert.doesNotMatch(text(), /NOTE:/)
 })
 

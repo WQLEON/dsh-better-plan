@@ -383,32 +383,34 @@ export function apply(ctx, config) {
 
   const optionSchema = {
     type: 'array',
-    description: 'Answer options; exactly one recommended (pre-selected).',
+    description: 'Options; one recommended.',
     items: {
       type: 'object',
       properties: {
-        text: { type: 'string', description: 'The option text.' },
-        recommended: { type: 'boolean', description: 'Pre-selected default for this question.' },
+        text: { type: 'string' },
+        recommended: { type: 'boolean', description: 'Pre-selected.' },
       },
       required: ['text'],
       additionalProperties: false,
     },
   }
 
-  const decisionTool = {
-    name: 'better_plan_publish_decisions',
-    description: 'Publish the full question list to the decision panel. Real options only (1–3 typical), exactly one recommended; ids continue Q1, Q2, … Never ask in chat.',
+  const publishTool = {
+    name: 'better_plan_publish',
+    description: 'Publish to the decision panel: kind=decisions (questions with options, one recommended) or kind=plan (ordered steps with detail and verification).',
     parameters: {
       type: 'object',
       properties: {
+        kind: { type: 'string', enum: ['decisions', 'plan'] },
         items: {
           type: 'array',
           items: {
             type: 'object',
             properties: {
-              id: { type: 'string', description: 'Question id, e.g. Q1.' },
-              title: { type: 'string', description: 'Short title.' },
-              question: { type: 'string', description: 'Full question body.' },
+              id: { type: 'string' },
+              title: { type: 'string' },
+              question: { type: 'string' },
+              detail: { type: 'string' },
               options: optionSchema,
             },
             required: ['id', 'title'],
@@ -416,7 +418,8 @@ export function apply(ctx, config) {
           },
         },
       },
-      required: ['items'], additionalProperties: false,
+      required: ['kind', 'items'],
+      additionalProperties: false,
     },
     output: {
       schema: { type: 'object' },
@@ -424,52 +427,15 @@ export function apply(ctx, config) {
         type: 'text',
         text: v?.ok === false
           ? `Rejected: ${v.message ?? v.code}`
-          : `Published ${v?.count ?? 0} question(s) to the decision panel.`,
+          : `Published ${v?.count ?? 0} item(s) to the decision panel.`,
       }],
     },
     async execute(args, exec) {
-      return publishThroughTool(exec, 'decision', args?.items)
+      return publishThroughTool(exec, args?.kind === 'plan' ? 'plan' : 'decision', args?.items)
     },
   }
 
-  const planTool = {
-    name: 'better_plan_publish_items',
-    description: 'Publish the full ordered plan to the decision panel. Each step names what changes and how to verify it; ids continue P1, P2, … Implement only after the user confirms.',
-    parameters: {
-      type: 'object',
-      properties: {
-        items: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'string', description: 'Step id, e.g. P1.' },
-              title: { type: 'string', description: 'Short step title.' },
-              detail: { type: 'string', description: 'What changes and how to verify it.' },
-            },
-            required: ['id', 'title', 'detail'],
-            additionalProperties: false,
-          },
-        },
-      },
-      required: ['items'], additionalProperties: false,
-    },
-    output: {
-      schema: { type: 'object' },
-      render: (_a, v) => [{
-        type: 'text',
-        text: v?.ok === false
-          ? `Rejected: ${v.message ?? v.code}`
-          : `Published ${v?.count ?? 0} plan item(s) to the decision panel.`,
-      }],
-    },
-    async execute(args, exec) {
-      return publishThroughTool(exec, 'plan', args?.items)
-    },
-  }
-
-  ctx.effect(() => ctx.tools?.register?.(decisionTool), 'better-plan decisions tool')
-  ctx.effect(() => ctx.tools?.register?.(planTool), 'better-plan plan tool')
+  ctx.effect(() => ctx.tools?.register?.(publishTool), 'better-plan publish tool')
 
   /* ------------------------------------------------------- system prompt */
 
@@ -543,7 +509,7 @@ export function apply(ctx, config) {
       }
       if (event.type === 'tool/call') {
         const name = event.data?.name ?? event.data?.call?.name ?? ''
-        if (typeof name === 'string' && name.startsWith('better_plan_publish_')) {
+        if (typeof name === 'string' && name.startsWith('better_plan_publish')) {
           publishedSinceUser.add(sessionId)
           notices.delete(sessionId)
         }

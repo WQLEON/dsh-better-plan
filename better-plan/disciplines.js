@@ -21,7 +21,7 @@ export function buildDisciplines(settings = {}) {
     '',
     'SETTLE: the user confirms the batch on the panel. Unchanged confirmed items stay confirmed when the list is republished; only new or changed items are pending. A non-recommended answer is custom: publish ONE follow-up round confirming it.',
     '',
-    'PLAN: once every question is settled, call better_plan_publish_items with the ordered plan {id,title,detail}, P1,P2,… continuing; each step names what changes and how to verify it. Republishing keeps unchanged confirmed steps.',
+    'PLAN: once every question is settled, call better_plan_publish with kind=plan and the ordered steps {id,title,detail}, P1,P2,… continuing; each step names what changes and how to verify it. Republishing keeps unchanged confirmed steps.',
   ]
   if (minTotal > 0) {
     lines.push('', `PLAN unlocks only after at least ${minTotal} questions are confirmed.`)

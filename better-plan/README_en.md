@@ -12,7 +12,7 @@ A DeepSeek Harness (DSH) web client plugin: a right-sidebar decision panel with 
 - **Confirmed items are never asked twice**: republishing keeps every item whose id and content are unchanged, and reopens only the new or changed ones; plan items behave the same way.
 - **Numbering continues**: questions are always Q1, Q2, …, plans P1, P2, …; new items continue from the highest number used and numbers are never reused.
 - **Fixed footer**: "Other requirements" and "Confirm all" stay pinned to the bottom of the panel while the content scrolls.
-- **Fixed cost halved**: discipline text 1,196 → 379 tokens and the two tool schemas 496 → 349, about 0.73k input tokens per request (o200k measurement).
+- **Fixed cost cut**: discipline text 1,196 → 381 tokens; the two tool schemas were merged into one, 496 → 232 tokens, about 0.61k input tokens per request (o200k measurement).
 - **Tool inputs trimmed**: the ignored `status` / `answer` fields are gone and descriptions are shorter; behaviour is unchanged.
 - **"Confirm all" never disappears**: disabled and grey when nothing is pending (label "Confirm all"), enabled as "Submit requirements" once you type one.
 - **Chat template**: 「已提出 X 条问题待回复，请查看决策面板。」 / 「已发布 X 条计划待确认，请查看决策面板。」
