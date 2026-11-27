@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Better plan",
-    "description": "A two-phase ask-then-plan panel: the agent publishes questions with pre-selected options, you confirm the batch once, then confirm the ordered plan before anything is implemented.",
+    "description": "Better Plan: ask first, then plan, with repeated follow-ups so execution never drifts — every decision is yours, made on the right-sidebar panel. It brings grill-me-style skills together with a DSH-plan-mode-inspired discipline, so your agent understands you better.",
     "detail": "docs/DETAIL.md"
   }
 }

@@ -1,6 +1,6 @@
 # 更好的计划模式（Better Plan）
 
-一个 DeepSeek Harness（DSH）Web 客户端插件：把「先提问、再计划」的两阶段协作流程搬到右侧边栏的决策面板，用一次点击确认整批内容。
+一个 DeepSeek Harness（DSH）Web 客户端插件。先提问、再计划，反复追问避免执行跑偏，一切由你在右侧面板进行决策。该插件整合 grill-me 等技能，参考 DSH 的 Plan 模式，让你的智能体更加懂你。
 
 [English](#english) · 插件源码在 [`better-plan/`](better-plan/) · 可移植技能在 [`better-plan-skill/`](better-plan-skill/) · 变更见 [CHANGELOG.md](CHANGELOG.md)
 
@@ -60,4 +60,4 @@ MIT，见 [LICENSE](LICENSE)。
 
 ## English
 
-A DeepSeek Harness (DSH) web client plugin: the agent publishes questions with pre-selected options to a right-sidebar panel, you confirm the batch once, then confirm the ordered plan before anything is implemented. State is per conversation, confirmed items are never asked twice, and the same discipline ships as a tool-free skill in [`better-plan-skill/`](better-plan-skill/).
+A DeepSeek Harness (DSH) web client plugin. Ask first, then plan, with repeated follow-ups so execution never drifts — every decision is yours, made on the right-sidebar panel. It brings grill-me-style skills together with a DSH-plan-mode-inspired discipline, so your agent understands you better.
