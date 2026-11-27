@@ -387,7 +387,8 @@ export function publishDecisions(state, items, settings) {
     limit,
     prefix: 'Q',
   })
-  next.decisions = merged.items
+  const incomingQuestions = new Set(merged.items.map((item) => item.id))
+  next.decisions = [...merged.items, ...state.decisions.filter((item) => !incomingQuestions.has(item.id))]
   next.counters = { ...next.counters, q: merged.counter }
   // Publishing a new round answers whatever requirement asked for it.
   next.pendingRequirements = []
@@ -448,7 +449,8 @@ export function publishPlan(state, items, settings) {
     limit: MAX_ITEMS,
     prefix: 'P',
   })
-  next.plan = merged.items
+  const incomingPlan = new Set(merged.items.map((item) => item.id))
+  next.plan = [...merged.items, ...state.plan.filter((item) => !incomingPlan.has(item.id))]
   next.counters = { ...next.counters, p: merged.counter }
   next.mode = 'plan'
   const knownPlan = new Set(state.plan.map((item) => item.id))
@@ -550,6 +552,8 @@ export function confirmAll(state, input, settings) {
     && customAnswers.length === 0
   const feedback = buildFeedback({ extra, customAnswers, planDone, count })
   if (planDone) next.awaitingReport = true
+  next.timeline = syncSnapshots(next.timeline, 'questions', next.decisions)
+  next.timeline = syncSnapshots(next.timeline, 'plan', next.plan)
   next.revision = state.revision + 1
   return { state: next, count, customAnswers, planDone, feedback, mode: next.mode, round: next.round }
 }
@@ -566,6 +570,16 @@ export function recordReport(state, text) {
   appendEntry(next, 'report', [], { text: textOf(text, 4000) })
   next.revision = state.revision + 1
   return { ok: true, state: next, round: next.round }
+}
+
+/** Copy settled items back into the timeline snapshots of the same kind. */
+function syncSnapshots(timeline, kind, list) {
+  if (!Array.isArray(timeline) || timeline.length === 0) return timeline
+  const byId = new Map(list.map((item) => [item.id, item]))
+  return timeline.map((entry) => {
+    if (entry.kind !== kind) return entry
+    return { ...entry, items: (entry.items ?? []).map((snap) => byId.get(snap.id) ?? snap) }
+  })
 }
 
 /** Single-item settle (kept for completeness; the panel uses the batch path). */
@@ -587,6 +601,7 @@ export function settleOne(state, input, settings) {
     : { ...item, status: 'rejected', answer, updatedAt: Date.now() }
 
   next.mode = recomputeMode(next, settings)
+  next.timeline = syncSnapshots(next.timeline, kind === 'decision' ? 'questions' : 'plan', list)
   next.revision = state.revision + 1
   const allDone = !hasPending(next.decisions) && !hasPending(next.plan) && next.plan.length > 0 && settled(next.plan)
   if (allDone) next.roundDone = true

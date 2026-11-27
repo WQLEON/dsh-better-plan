@@ -216,14 +216,14 @@ test('new questions continue the Q numbering', () => {
   assert.equal(again.state.counters.q, 4)
 })
 
-test('a removed number is never reused', () => {
+test('a settled item is never dropped by a partial republish', () => {
   let state = publishDecisions(emptyState(), questions(3), settings).state
   state = confirmAll(state, { answers: { Q1: 'A', Q2: 'A', Q3: 'A' } }, settings).state
-  // Q3 disappears from the list, then a new item claims Q3 again.
+  // The model republishes only Q1/Q2; Q3 must stay confirmed, not vanish.
   state = publishDecisions(state, questions(2), settings).state
-  const again = publishDecisions(state, [{ id: 'Q3', title: 'fresh' }], settings)
-  assert.notEqual(again.state.decisions[0].id, 'Q3')
-  assert.equal(again.state.decisions[0].id, 'Q4')
+  assert.deepEqual(state.decisions.map((d) => d.id), ['Q1', 'Q2', 'Q3'])
+  assert.equal(state.decisions[2].status, 'confirmed')
+  assert.equal(state.decisions[2].answer, 'A')
 })
 
 test('plans merge the same way and keep confirmed steps', () => {
@@ -342,4 +342,12 @@ test('adding one new question records only that item', () => {
   assert.equal(state.timeline.length, 2)
   assert.equal(state.timeline.at(-1).batch, 2)
   assert.deepEqual(state.timeline.at(-1).items.map((i) => i.id), ['Q4'])
+})
+
+test('confirming an item refreshes its timeline snapshot', () => {
+  let state = publishDecisions(emptyState(), questions(3), settings).state
+  state = confirmAll(state, { answers: { Q1: 'A', Q2: 'A', Q3: 'A' } }, settings).state
+  const snap = state.timeline.find((e) => e.kind === 'questions').items.find((i) => i.id === 'Q2')
+  assert.equal(snap.status, 'confirmed')
+  assert.equal(snap.answer, 'A')
 })
