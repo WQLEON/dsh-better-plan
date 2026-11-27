@@ -539,7 +539,11 @@ window.__ModuleLoader__.load({
       const text = String(entry.text || '').replace(/^\s*#{1,4}\s*(执行报告|Execution report)\s*(\r?\n|$)/i, '').trim()
       const long = text.length > 800
       const shown = long && !open ? text.slice(0, 300) + '…' : text
-      const time = entry.at ? new Date(entry.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+      const pad = (value) => String(value).padStart(2, '0')
+      const when = entry.at ? new Date(entry.at) : null
+      const time = when
+        ? `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(when.getDate())} ${pad(when.getHours())}:${pad(when.getMinutes())}:${pad(when.getSeconds())}`
+        : ''
       return h('div', {
         style: {
           border: '1px solid var(--dsw-alias-border-l1, transparent)',
