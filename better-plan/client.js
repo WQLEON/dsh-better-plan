@@ -356,6 +356,7 @@ window.__ModuleLoader__.load({
 
     function ItemCard({ item, kind, draft, onDraft, readOnly = false }) {
       useLang()
+      const palette = kind === 'plan' ? KIND_STYLE.plan : KIND_STYLE.questions
       const settled = item.status !== 'pending'
       const options = Array.isArray(item.options) ? item.options : []
       const rows = kind === 'plan' && options.length === 0
@@ -400,8 +401,8 @@ window.__ModuleLoader__.load({
         style: {
           display: 'flex', alignItems: 'flex-start', gap: 8, textAlign: 'left',
           padding: '7px 10px', borderRadius: 8, cursor: 'pointer',
-          border: '1px solid ' + (on ? 'var(--dsw-alias-state-business-primary)' : 'var(--dsw-alias-border-l1)'),
-          background: on ? 'var(--dsw-alias-state-business-tertiary)' : 'transparent',
+          border: '1px solid ' + (on ? palette.line : 'var(--dsw-alias-border-l1)'),
+          background: on ? palette.tint : 'transparent',
           color: 'inherit', fontSize: 12, lineHeight: 1.5,
         },
       },
@@ -409,10 +410,10 @@ window.__ModuleLoader__.load({
           'aria-hidden': true,
           style: {
             flex: '0 0 auto', width: 14, height: 14, borderRadius: '50%', marginTop: 2,
-            border: '1px solid ' + (on ? 'var(--dsw-alias-state-business-primary)' : 'var(--dsw-alias-border-l2)'),
+            border: '1px solid ' + (on ? palette.line : 'var(--dsw-alias-border-l2)'),
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           },
-        }, on ? h('span', { style: { width: 7, height: 7, borderRadius: '50%', background: 'var(--dsw-alias-state-business-primary)' } }) : null),
+        }, on ? h('span', { style: { width: 7, height: 7, borderRadius: '50%', background: palette.line } }) : null),
         h('span', { style: extra ? { whiteSpace: 'pre-wrap' } : null }, label)
       )
 
@@ -438,7 +439,7 @@ window.__ModuleLoader__.load({
               marginLeft: 22, width: 'calc(100% - 22px)', boxSizing: 'border-box',
               padding: '7px 10px', borderRadius: 8, fontSize: 12, resize: 'vertical',
               fontFamily: 'inherit', minHeight: 46,
-              border: '1px solid var(--dsw-alias-state-business-primary)',
+              border: '1px solid ' + palette.line,
               background: 'transparent', color: 'inherit', outline: 'none',
             },
           }) : null
@@ -455,7 +456,6 @@ window.__ModuleLoader__.load({
           h('span', { style: { opacity: 0.7, marginRight: 6 } }, T.chosen + ':'), item.answer))
       }
 
-      const palette = kind === 'plan' ? KIND_STYLE.plan : KIND_STYLE.questions
       return h('div', {
         style: {
           border: '1px solid var(--dsw-alias-border-l1, transparent)',
