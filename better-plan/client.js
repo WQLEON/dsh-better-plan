@@ -723,7 +723,7 @@ window.__ModuleLoader__.load({
         const startY = event.clientY
         const startHeight = barHeight
         const onMove = (move) => {
-          const next = Math.min(Math.max(startHeight - (move.clientY - startY), 140), Math.max(200, window.innerHeight * 0.6))
+          const next = Math.max(startHeight - (move.clientY - startY), 140)
           setBarHeight(next)
           try { sessionStorage.setItem(barKey, String(next)) } catch { /* ignore */ }
         }
@@ -993,7 +993,7 @@ window.__ModuleLoader__.load({
           h('div', { style: { fontSize: 12, opacity: 0.75, marginBottom: 8 } }, T.history),
           h('button', { type: 'button', className: 'bp-primary', style: { ...primaryBtn, width: '100%', height: 36 }, onClick: () => setViewRound(null) }, T.backToCurrent)
         ) : h('div', {
-          style: { flex: 'none', height: barHeight, boxSizing: 'border-box', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px', display: 'flex', flexDirection: 'column', gap: 6, boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
+          style: { flex: 'none', height: barHeight, maxHeight: '100%', overflow: 'hidden', boxSizing: 'border-box', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px', display: 'flex', flexDirection: 'column', gap: 6, boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
         },
           h('div', {
             onMouseDown: startBarResize,
@@ -1007,7 +1007,7 @@ window.__ModuleLoader__.load({
             onChange: (e) => setExtra(e.target.value),
             style: {
               width: '100%', boxSizing: 'border-box', padding: '8px 10px', fontSize: 12,
-              borderRadius: 8, resize: 'none', flex: '1 1 auto', minHeight: 40, fontFamily: 'inherit',
+              borderRadius: 8, resize: 'none', flex: '1 1 auto', minHeight: 40, overflowY: 'auto', fontFamily: 'inherit',
               border: '1px solid ' + (extra.trim()
                 ? 'var(--dsw-alias-state-business-primary)'
                 : 'var(--dsw-alias-border-l1)'),
@@ -1022,7 +1022,7 @@ window.__ModuleLoader__.load({
             type: 'button',
             className: 'bp-primary',
             style: {
-              ...primaryBtn, width: '100%', height: 40, fontSize: 13, marginTop: 2,
+              ...primaryBtn, width: '100%', height: 40, fontSize: 13, marginTop: 2, flex: 'none',
               ...(canSubmit ? {} : {
                 background: 'var(--dsw-alias-bg-layer-3, transparent)',
                 color: 'var(--dsw-alias-label-tertiary, inherit)',
