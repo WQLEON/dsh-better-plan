@@ -93,7 +93,7 @@ test('recommended batch answers settle everything and close the loop', () => {
   state = publishPlan(state, [{ id: 'P1', title: 'step', detail: 'do it' }], settings).state
   const out = confirmAll(state, { answers: { P1: 'do it' } }, settings)
   assert.equal(out.planDone, true)
-  assert.match(out.feedback, /Every plan item is confirmed\. Begin implementation/)
+  assert.match(out.feedback, /\[bp\] plan confirmed\. Implement/)
   assert.equal(pendingCount(out.state), 0)
 })
 
@@ -105,14 +105,14 @@ test('A3: a non-recommended preset option still triggers a follow-up round', () 
   assert.equal(out.customAnswers.length, 1)
   assert.equal(out.state.awaitingFollowup, true)
   assert.equal(out.state.mode, 'asking')
-  assert.match(out.feedback, /Publish ONE follow-up round/)
+  assert.match(out.feedback, /Ask ONE follow-up round/)
 })
 
 test('A3: typed custom answers are echoed back for confirmation', () => {
   let state = publishDecisions(emptyState(), questions(3), settings).state
   const out = confirmAll(state, { answers: { Q1: 'my own idea' } }, settings)
   assert.deepEqual(out.customAnswers, [{ id: 'Q1', kind: 'decision', answer: 'my own idea' }])
-  assert.match(out.feedback, /Custom answers:\n- Q1 \(decision\): my own idea/)
+  assert.match(out.feedback, /custom answers \(not final\):\n- Q1 \(decision\): my own idea/)
 })
 
 test('extra requirements keep the loop open and are capped', () => {
@@ -120,7 +120,7 @@ test('extra requirements keep the loop open and are capped', () => {
   for (let i = 0; i < 60; i++) state = confirmAll(state, { extra: `req ${i}` }, settings).state
   assert.equal(state.pendingRequirements.length, 50)
   assert.equal(state.awaitingFollowup, true)
-  assert.match(confirmAll(state, { extra: 'x' }, settings).feedback, /Additional requirement:/)
+  assert.match(confirmAll(state, { extra: 'x' }, settings).feedback, /requirement \(not authorization\):/)
 })
 
 test('planDone is false while questions are still pending', () => {

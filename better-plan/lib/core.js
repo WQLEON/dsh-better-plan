@@ -492,24 +492,15 @@ function settleItem(item, kind, picked, explicit = false) {
 }
 
 export function buildFeedback({ extra, customAnswers, planDone, count }) {
-  const head = '[Plugin context from better-plan'
   if (extra) {
-    return head + '; the user submitted requirements — not authorization to implement.]\n'
-      + `Additional requirement:\n${extra}\n\n`
-      + 'Publish follow-up questions on the panel, then revise the plan. Wait for confirmation before implementing.'
+    return `[bp] requirement (not authorization): ${extra}\nAsk follow-ups on the panel, then revise the plan; wait.`
   }
   if (customAnswers.length > 0) {
     const list = customAnswers.map((c) => `- ${c.id} (${c.kind}): ${c.answer}`).join('\n')
-    return head + '; the user typed custom answers — not final.]\n'
-      + `Custom answers:\n${list}\n\n`
-      + 'Publish ONE follow-up round confirming them. Wait before implementing.'
+    return `[bp] custom answers (not final):\n${list}\nAsk ONE follow-up round; wait.`
   }
-  if (planDone) {
-    return head + '; the user confirmed the plan.]\n'
-      + 'Every plan item is confirmed. Begin implementation in this session, then send the execution report.'
-  }
-  return head + `; the user confirmed ${count} item(s) on the panel.]\n`
-    + 'Continue on the panel: publish the next questions, or the plan once every question is settled. Chat carries only the one-sentence template.'
+  if (planDone) return '[bp] plan confirmed. Implement, then report.'
+  return `[bp] the user confirmed ${count} item(s). Continue on the panel.`
 }
 
 export function confirmAll(state, input, settings) {

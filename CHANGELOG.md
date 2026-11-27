@@ -2,6 +2,12 @@
 
 本项目的版本变化。版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## 0.11.2 — 2026-11-28
+
+### 优化
+
+- 唤醒通知压到极简：`[bp] requirement/ custom answers / plan confirmed / the user confirmed N item(s)`，单条约 30–60 tokens（上一版约 80–120）。
+
 ## 0.11.1 — 2026-11-28
 
 ### 优化
