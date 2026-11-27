@@ -2,6 +2,14 @@
 
 本项目的版本变化。版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## 0.10.6 — 2026-11-27
+
+### 优化
+
+- 深色模式下底栏主按钮自动调暗（与黑色混合约 70%），浅色模式不变。
+- 选项行文字可拖选复制，点击仍能选中。
+- 会话消息在面板中隐藏系统时间行（Time sampled / Elapsed since / Browser time zone），状态里保留原文。
+
 ## 0.10.5 — 2026-11-27
 
 ### 变更

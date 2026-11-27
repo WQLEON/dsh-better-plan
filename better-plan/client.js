@@ -209,7 +209,7 @@ window.__ModuleLoader__.load({
       borderRadius: 8, fontSize: 12, lineHeight: 1, cursor: 'pointer',
       padding: '7px 14px', border: '1px solid var(--dsw-alias-border-l1, transparent)',
     }
-    const primaryBtn = { ...btnBase, background: 'var(--dsw-alias-state-business-primary)', color: 'var(--dsw-alias-label-on-color)', borderColor: 'transparent', fontWeight: 600 }
+    const primaryBtn = { ...btnBase, background: 'var(--bp-primary-bg, var(--dsw-alias-state-business-primary))', color: 'var(--dsw-alias-label-on-color)', borderColor: 'transparent', fontWeight: 600 }
     const ghostBtn = { ...btnBase, background: 'transparent', color: 'var(--dsw-alias-label-secondary, inherit)' }
     const dangerBtn = { ...ghostBtn, color: 'var(--dsw-alias-state-error-primary, inherit)' }
 
@@ -402,6 +402,7 @@ window.__ModuleLoader__.load({
           display: 'flex', alignItems: 'flex-start', gap: 8, textAlign: 'left',
           padding: '7px 10px', borderRadius: 8, cursor: 'pointer',
           border: '1px solid ' + (on ? palette.line : 'var(--dsw-alias-border-l1)'),
+          userSelect: 'text',
           background: on ? palette.tint : 'transparent',
           color: 'inherit', fontSize: 12, lineHeight: 1.5,
         },
@@ -793,7 +794,12 @@ window.__ModuleLoader__.load({
           const message = entry.kind === 'message'
           const accent = message ? KIND_STYLE.message : KIND_STYLE.requirement
           const body = message
-            ? String(entry.text || '').replace(/<system-reminder>[\s\S]*?<\/system-reminder>/gi, '').trim()
+            ? String(entry.text || '')
+              .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/gi, '')
+              .split('\n')
+              .filter((line) => !/^\s*(Time sampled|Elapsed since|Browser time zone)/i.test(line))
+              .join('\n')
+              .trim()
             : (entry.text || '')
           return h('div', {
             key,
@@ -838,6 +844,8 @@ window.__ModuleLoader__.load({
         },
       },
         h('style', null, [
+          ':root { --bp-primary-bg: var(--dsw-alias-state-business-primary); }',
+          'body[data-ds-dark-theme] { --bp-primary-bg: color-mix(in srgb, var(--dsw-alias-state-business-primary) 70%, #000); }',
           '.bp-bar-btn { background: rgba(127,127,127,0.12); border: 1px solid rgba(127,127,127,0.28); border-radius: 8px; padding: 5px 9px; font-size: 12px; line-height: 1; cursor: pointer; color: inherit; }',
           '.bp-bar-btn:hover:not(:disabled) { background: rgba(127,127,127,0.22); }',
           '.bp-bar-btn:disabled { opacity: 0.4; cursor: not-allowed; }',
