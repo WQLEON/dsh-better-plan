@@ -272,7 +272,7 @@ export function hydrateState(raw) {
   return state
 }
 
-const ENTRY_KINDS = new Set(['questions', 'plan', 'requirement', 'report', 'discard'])
+const ENTRY_KINDS = new Set(['questions', 'plan', 'requirement', 'report', 'discard', 'message'])
 
 /**
  * Regroup the timeline so a round holds its questions, plans and requirements,
@@ -378,7 +378,7 @@ export function recomputeMode(state, settings) {
 
 /* ------------------------------------------------------------------ publish */
 
-export function publishDecisions(state, items, settings) {
+export function publishDecisions(state, items, settings, options = {}) {
   const next = cloneState(state)
   const limit = settings?.maxPerBatch ?? settings?.maxPerRound ?? 10
   const merged = mergeItems(items, {
@@ -399,6 +399,10 @@ export function publishDecisions(state, items, settings) {
   const freshQuestions = merged.items.filter((item) => !knownQuestions.has(item.id))
   if (freshQuestions.length > 0) {
     startNextRoundIfDone(next)
+    const firstBatch = !next.timeline.some((entry) => entry.round === next.round && entry.kind === 'questions')
+    if (firstBatch && options?.userMessage) {
+      appendEntry(next, 'message', [], { text: textOf(options.userMessage, 2000) })
+    }
     appendEntry(next, 'questions', freshQuestions)
   }
   next.mode = recomputeMode(next, settings)
@@ -535,6 +539,13 @@ export function confirmAll(state, input, settings) {
   if (kind === 'all' || kind === 'plan') next.plan = settleList(next.plan, 'plan')
 
   if (extra) {
+    if (next.roundDone) {
+      next.round += 1
+      next.roundDone = false
+      next.awaitingReport = false
+      next.decisions = []
+      next.plan = []
+    }
     next.extraRequirements = [...next.extraRequirements, extra].slice(-MAX_EXTRA_ITEMS)
     next.pendingRequirements = [...next.pendingRequirements, extra].slice(-MAX_EXTRA_ITEMS)
     next.awaitingFollowup = true

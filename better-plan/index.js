@@ -175,6 +175,7 @@ export function apply(ctx, config) {
   const notices = new Map()
   const publishedSinceUser = new Set()
   const lastAssistant = new Map()
+  const lastUserMessage = new Map()
   const NOTICE_TTL_MS = 10 * 60 * 1000
   const NOTICE_TEXT = 'NOTE: your previous reply wrote questions or plan content in chat without publishing. Publish with the panel tools; in chat reply only with the one-sentence template.'
   // Two-tier injection: a session gets the full discipline once per icon-on
@@ -324,6 +325,12 @@ export function apply(ctx, config) {
 
   /* --------------------------------------------------------------- delivery */
 
+  const takeUserMessage = (sessionId) => {
+    const text = lastUserMessage.get(sessionId)
+    lastUserMessage.delete(sessionId)
+    return text
+  }
+
   const wakeAgent = (feedback, sessionRaw) => {
     if (!feedback) return false
     // With the feature switched off the panel must not put words in a turn.
@@ -369,7 +376,7 @@ export function apply(ctx, config) {
       notices.delete(sessionRaw)
       return { ...outcome.result, persisted: commitState(key, outcome.state) }
     }
-    const outcome = publishDecisions(state, items, settings)
+    const outcome = publishDecisions(state, items, settings, { userMessage: takeUserMessage(sessionRaw) })
     notices.delete(sessionRaw)
     return { ...outcome.result, persisted: commitState(key, outcome.state) }
   }
@@ -509,6 +516,8 @@ export function apply(ctx, config) {
       if (!disciplineActive(sessionId)) return
       if (event.type === 'user/message') {
         publishedSinceUser.delete(sessionId)
+        const text = assistantText(event.data?.message)
+        if (text && !text.startsWith('[Plugin context from better-plan')) lastUserMessage.set(sessionId, text)
         return
       }
       if (event.type === 'turn/end') {
@@ -665,7 +674,7 @@ export function apply(ctx, config) {
           const persisted = commitState(session.key, outcome.state)
           return sendJson(res, 200, { ...view(outcome.state, session, persisted), ...outcome.result, persisted })
         }
-        const outcome = publishDecisions(state, body?.items ?? body?.decisions, settings)
+        const outcome = publishDecisions(state, body?.items ?? body?.decisions, settings, { userMessage: takeUserMessage(session.raw) })
         notices.delete(session.raw)
         const persisted = commitState(session.key, outcome.state)
         return sendJson(res, 200, { ...view(outcome.state, session, persisted), ...outcome.result, persisted })

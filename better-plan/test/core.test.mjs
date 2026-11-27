@@ -392,3 +392,27 @@ test('discard keeps the round as history and starts a fresh one', () => {
   assert.equal(next.round, 2)
   assert.equal(next.timeline.at(-1).round, 2)
 })
+
+test('the chat message that opens a round is recorded before its questions', () => {
+  const state = publishDecisions(emptyState(), questions(3), settings, { userMessage: '帮我做个插件' }).state
+  assert.equal(state.timeline[0].kind, 'message')
+  assert.equal(state.timeline[0].text, '帮我做个插件')
+  assert.equal(state.timeline[1].kind, 'questions')
+  const again = publishDecisions(state, [{ id: 'Q9', title: 'x' }], settings, { userMessage: 'another' }).state
+  assert.equal(again.timeline.filter((entry) => entry.kind === 'message').length, 1)
+})
+
+test('a requirement submitted after the report starts a new round', () => {
+  let state = publishDecisions(emptyState(), questions(2), settings).state
+  state = confirmAll(state, { answers: {} }, settings).state
+  state = publishPlan(state, [{ id: 'P1', title: 'step', detail: 'd' }], settings).state
+  state = confirmAll(state, { answers: {} }, settings).state
+  state = recordReport(state, 'done').state
+  const out = confirmAll(state, { extra: '下一个需求' }, settings).state
+  assert.equal(out.round, 2)
+  assert.equal(out.decisions.length, 0)
+  assert.equal(out.plan.length, 0)
+  assert.equal(out.timeline.at(-1).kind, 'requirement')
+  assert.equal(out.timeline.at(-1).round, 2)
+  assert.equal(out.awaitingFollowup, true)
+})

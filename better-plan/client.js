@@ -76,6 +76,7 @@ window.__ModuleLoader__.load({
       batchQuestions: ['第 {n} 次提问', 'Questions #{n}'],
       batchPlan: ['第 {n} 次计划', 'Plan #{n}'],
       requirementEntry: ['其他要求', 'Additional requirement'],
+      messageEntry: ['会话消息', 'Message'],
       reportEntry: ['执行报告', 'Execution report'],
       expand: ['展开', 'Expand'],
       collapse: ['收起', 'Collapse'],
@@ -199,6 +200,7 @@ window.__ModuleLoader__.load({
       questions: { line: '#247bbf', tint: 'rgba(36,123,191,0.07)' },
       plan: { line: '#2e9e5b', tint: 'rgba(46,158,91,0.08)' },
       requirement: { line: '#b47a10', tint: 'rgba(180,122,16,0.10)' },
+      message: { line: '#b47a10', tint: 'rgba(180,122,16,0.08)' },
       report: { line: '#7b5cc4', tint: 'rgba(123,92,196,0.10)' },
       discard: { line: '#8a8a8a', tint: 'rgba(138,138,138,0.08)' },
     }
@@ -787,16 +789,18 @@ window.__ModuleLoader__.load({
         if (entry.kind === 'discard') {
           return h('div', { key }, h('div', { style: { ...dividerStyle, color: KIND_STYLE.discard.line } }, T.discardEntry))
         }
-        if (entry.kind === 'requirement') {
+        if (entry.kind === 'requirement' || entry.kind === 'message') {
+          const message = entry.kind === 'message'
+          const accent = message ? KIND_STYLE.message : KIND_STYLE.requirement
           return h('div', {
             key,
             style: {
-              borderLeft: '3px solid ' + KIND_STYLE.requirement.line,
-              background: KIND_STYLE.requirement.tint,
+              borderLeft: '3px solid ' + accent.line,
+              background: accent.tint,
               borderRadius: 8, padding: '8px 10px',
             },
           },
-            h('div', { style: { ...dividerStyle, margin: 0, color: KIND_STYLE.requirement.line } }, T.requirementEntry),
+            h('div', { style: { ...dividerStyle, margin: 0, color: accent.line } }, message ? T.messageEntry : T.requirementEntry),
             h('div', { style: { fontSize: 12, whiteSpace: 'pre-wrap', lineHeight: 1.6 } }, entry.text || ''))
         }
         const questions = entry.kind === 'questions'
