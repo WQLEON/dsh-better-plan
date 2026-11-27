@@ -24,7 +24,7 @@ A DeepSeek Harness (DSH) web client plugin: a right-sidebar decision panel with 
 - **Input-icon setting**: `showInputIcon` (default on). Hiding the icon counts as the mode being off; `/better-plan` still arms one request.
 - **Sidebar icon**: the panel's guide entry shows the plugin icon instead of the default placeholder.
 - The "Submit requirements" button is now "Confirm all and submit requirements".
-- **Round timeline**: the header shows "Round N" with prev/next buttons; each round mixes questions, plans and requirements in publish order, separated by "Questions #n" / "Plan #n" dividers; past rounds are read-only.
+- **Round timeline**: the header shows "Round N" with prev/next buttons; each round mixes questions, plans and requirements in publish order, separated by "Questions #n" / "Plan #n" dividers; past rounds are read-only. A round closes only after its execution report is recorded; confirmed items are never reopened, only flagged "Updated" when their text changed.
 - **Two-tier injection**: the full discipline once per activation (~0.38k tokens), then a ~0.05k reminder.
 - **Commands**: `/better-plan` and `/better-plan-off` match the input icon.
 - `lib/core.js` holds the pure state machine; 50 tests run with `npm test`.

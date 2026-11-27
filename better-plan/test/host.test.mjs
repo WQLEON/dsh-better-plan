@@ -349,7 +349,7 @@ test('republishing questions keeps what the user already confirmed', async () =>
   assert.equal(again.json.counters.q, 2)
 })
 
-test('a changed question is reopened while the others stay confirmed', async () => {
+test('a changed question keeps its confirmation and answer', async () => {
   const b = boot()
   const session = { 'x-better-plan-session': 'session-reopen' }
   const token = (await state(b, session)).json.token
@@ -368,9 +368,10 @@ test('a changed question is reopened while the others stay confirmed', async () 
   ]
   const nextRevision = (await state(b, session)).json.revision
   const again = await post(b, { action: 'publish', kind: 'decision', items: changed, revision: nextRevision }, headers)
-  assert.equal(again.json.reopened, 1)
+  assert.equal(again.json.updated, 1)
   assert.equal(again.json.kept, 1)
-  assert.deepEqual(again.json.decisions.map((d) => d.status), ['pending', 'confirmed'])
+  assert.deepEqual(again.json.decisions.map((d) => d.status), ['confirmed', 'confirmed'])
+  assert.deepEqual(again.json.decisions.map((d) => d.answer), ['A', 'A'])
 })
 
 test('tool schemas do not expose the ignored lifecycle inputs', async () => {

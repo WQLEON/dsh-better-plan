@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   confirmAll, emptyState, hydrateState, pendingCount, publishDecisions, publishPlan,
-  recomputeMode, sanitizeItems, settleOne,
+  recomputeMode, recordReport, sanitizeItems, settleOne,
 } from '../lib/core.js'
 
 const settings = { minPerBatch: 3, maxPerBatch: 10, minTotal: 0 }
@@ -84,7 +84,7 @@ test('plan publishes once the asking phase is settled', () => {
   assert.equal(out.state.mode, 'plan')
   assert.equal(out.state.plan[0].status, 'pending')
   assert.deepEqual(out.result, {
-    ok: true, kind: 'plan', count: 1, pending: 1, kept: 0, reopened: 0, round: 1, mode: 'plan', revision: state.revision + 1,
+    ok: true, kind: 'plan', count: 1, pending: 1, kept: 0, updated: 0, round: 1, mode: 'plan', revision: state.revision + 1,
   })
 })
 
@@ -189,21 +189,22 @@ test('republishing the same questions keeps confirmed answers', () => {
   state = confirmAll(state, { answers: { Q1: 'A', Q2: 'A', Q3: 'A' } }, settings).state
   const again = publishDecisions(state, questions(3), settings)
   assert.equal(again.result.kept, 3)
-  assert.equal(again.result.reopened, 0)
+  assert.equal(again.result.updated, 0)
   assert.deepEqual(again.state.decisions.map((d) => d.status), ['confirmed', 'confirmed', 'confirmed'])
   assert.deepEqual(again.state.decisions.map((d) => d.answer), ['A', 'A', 'A'])
 })
 
-test('changed content reopens only that item', () => {
+test('changed content keeps the confirmation and only flags the item', () => {
   let state = publishDecisions(emptyState(), questions(3), settings).state
   state = confirmAll(state, { answers: { Q1: 'A', Q2: 'A', Q3: 'A' } }, settings).state
   const changed = questions(3)
   changed[1].question = 'a different body'
   const again = publishDecisions(state, changed, settings)
   assert.equal(again.result.kept, 2)
-  assert.equal(again.result.reopened, 1)
-  assert.deepEqual(again.state.decisions.map((d) => d.status), ['confirmed', 'pending', 'confirmed'])
-  assert.equal(again.state.decisions[1].id, 'Q2')
+  assert.equal(again.result.updated, 1)
+  assert.deepEqual(again.state.decisions.map((d) => d.status), ['confirmed', 'confirmed', 'confirmed'])
+  assert.deepEqual(again.state.decisions.map((d) => d.answer), ['A', 'A', 'A'])
+  assert.equal(again.state.decisions[1].updated, true)
 })
 
 test('new questions continue the Q numbering', () => {
@@ -240,17 +241,18 @@ test('plans merge the same way and keep confirmed steps', () => {
   assert.equal(again.state.counters.p, 3)
 })
 
-test('reusing an existing id with new content reopens that slot (R2)', () => {
+test('a model that forgot the counter keeps the settled items', () => {
   let state = publishDecisions(emptyState(), questions(2), settings).state
   state = confirmAll(state, { answers: { Q1: 'A', Q2: 'A' } }, settings).state
-  // A model that forgot the counter sends two brand-new questions as Q1/Q2.
+  // A model that forgot the counter sends two questions as Q1/Q2 again.
   const again = publishDecisions(state, [
     { id: 'Q1', title: 'brand new', options: [{ text: 'A', recommended: true }] },
     { id: 'Q2', title: 'also new', options: [{ text: 'A', recommended: true }] },
   ], settings)
   assert.deepEqual(again.state.decisions.map((d) => d.id), ['Q1', 'Q2'])
-  assert.equal(again.result.reopened, 2)
-  assert.deepEqual(again.state.decisions.map((d) => d.status), ['pending', 'pending'])
+  assert.equal(again.result.updated, 2)
+  assert.deepEqual(again.state.decisions.map((d) => d.status), ['confirmed', 'confirmed'])
+  assert.deepEqual(again.state.decisions.map((d) => d.answer), ['A', 'A'])
 })
 
 test('discipline text stays compact and carries both chat templates', async () => {
@@ -286,18 +288,35 @@ test('extra requirements and plans land in the same round timeline', () => {
   assert.equal(plan.state.timeline.at(-1).round, 1)
 })
 
-test('a finished round starts the next one when new content arrives', () => {
+test('a round closes only when its execution report is recorded', () => {
   let state = publishDecisions(emptyState(), questions(3), settings).state
   state = confirmAll(state, { answers: {} }, settings).state
   state = publishPlan(state, [{ id: 'P1', title: 'step', detail: 'd' }], settings).state
-  assert.equal(state.round, 1)
   state = confirmAll(state, { answers: {} }, settings).state
   assert.equal(state.round, 1)
+  assert.equal(state.roundDone, false)
+  assert.equal(state.awaitingReport, true)
+  state = recordReport(state, '执行报告：改了什么、怎么验证').state
   assert.equal(state.roundDone, true)
+  assert.equal(state.timeline.at(-1).kind, 'report')
   state = publishDecisions(state, [{ id: 'Q9', title: 'next', question: 'q', options: ['a'] }], settings).state
   assert.equal(state.round, 2)
   assert.equal(state.timeline.at(-1).round, 2)
   assert.equal(state.timeline.at(-1).batch, 1)
+})
+
+test('confirming questions never finishes a round that already had a plan', () => {
+  let state = publishDecisions(emptyState(), questions(3), settings).state
+  state = confirmAll(state, { answers: {} }, settings).state
+  state = publishPlan(state, [{ id: 'P1', title: 'step', detail: 'd' }], settings).state
+  state = confirmAll(state, { answers: {} }, settings).state
+  assert.equal(state.awaitingReport, true)
+  state = recordReport(state, 'done').state
+  // A new question batch in the next cycle: confirming it must not finish it.
+  state = publishDecisions(state, [{ id: 'Q9', title: 'next', question: 'q', options: ['a'] }], settings).state
+  state = confirmAll(state, { answers: {} }, settings).state
+  assert.equal(state.roundDone, false)
+  assert.equal(state.awaitingReport, false)
 })
 
 test('hydrate keeps the timeline and the round', () => {

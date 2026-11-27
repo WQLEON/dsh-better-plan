@@ -49,6 +49,7 @@ export function emptyState() {
     // appended in publishing order so the panel can replay the whole round.
     round: 1,
     roundDone: false,
+    awaitingReport: false,
     timeline: [],
   }
 }
@@ -170,25 +171,29 @@ function highestNumber(list, prefix) {
 /**
  * Merge a republished list into the settled one.
  *
- * - same id + same content  -> keep the stored item and its status/answer
- * - same id + changed content -> same id, reopened as pending
- * - new id above the counter  -> accepted as-is
- * - anything else (missing id, a number already used, duplicates) -> next
- *   free number, so ids continue Q1, Q2, … and are never reused
+ * The user's confirmation is never taken back by a republish:
+ * - same content (same id or another id) -> the stored item wins: its status
+ *   and answer stay, only the text is refreshed and `updated` is flagged;
+ * - an already confirmed item whose wording changed -> same: keep status and
+ *   answer, refresh the text, flag `updated`;
+ * - a genuinely new item -> pending, numbered from the running counter.
  *
  * Returns the merged list plus counters/accounting for the caller.
  */
 export function mergeItems(rawList, { existing = [], counter = 0, limit = MAX_ITEMS, prefix = 'Q' } = {}) {
   const list = Array.isArray(rawList) ? rawList.slice(0, limit ?? MAX_ITEMS) : []
   const byId = new Map((existing ?? []).map((item) => [item.id, item]))
-  // The counter only reflects ids already handed out; ids in this batch are
-  // accepted when they are above it, so a fresh list keeps Q1, Q2, …
+  const bySignature = new Map()
+  for (const item of existing ?? []) {
+    const key = signatureOf(item)
+    if (!bySignature.has(key)) bySignature.set(key, item)
+  }
   const base = Math.max(counter, highestNumber(existing, prefix))
   let next = base
   const used = new Set()
   const items = []
   let kept = 0
-  let reopened = 0
+  let updated = 0
 
   const takeId = () => {
     do { next += 1 } while (used.has(`${prefix}${next}`) || byId.has(`${prefix}${next}`))
@@ -199,28 +204,35 @@ export function mergeItems(rawList, { existing = [], counter = 0, limit = MAX_IT
 
   for (const raw of list) {
     const shape = shapeOf(raw)
+    const signature = signatureOf(shape)
     const wanted = numberFromId(raw?.id, prefix)
-    let id = null
+    const candidate = wanted !== null ? `${prefix}${wanted}` : null
+    const byStoredId = candidate && !used.has(candidate) ? byId.get(candidate) : null
+    // A republish under a new id but with identical content is the same item.
+    const byContent = !byStoredId ? bySignature.get(signature) ?? null : null
 
-    if (wanted !== null) {
-      const candidate = `${prefix}${wanted}`
-      const stored = byId.get(candidate)
-      if (stored && !used.has(candidate)) {
-        id = candidate
-        used.add(candidate)
-        if (signatureOf(stored) === signatureOf(shape)) {
-          items.push(stored)
-          kept += 1
-          continue
-        }
-        reopened += 1
-      } else if (!stored && !used.has(candidate) && wanted > base) {
-        id = candidate
-        used.add(candidate)
-        next = Math.max(next, wanted)
-      }
+    if (byStoredId || byContent) {
+      const stored = byStoredId ?? byContent
+      if (used.has(stored.id)) continue
+      used.add(stored.id)
+      const changed = signatureOf(stored) !== signature
+      items.push({
+        ...stored,
+        ...shape,
+        id: stored.id,
+        status: stored.status,
+        answer: stored.answer,
+        updatedAt: unchangedAt(stored, changed),
+        ...(changed ? { updated: true } : { updated: stored.updated === true }),
+      })
+      if (changed) updated += 1
+      else kept += 1
+      continue
     }
-    if (id === null) id = takeId()
+
+    const id = candidate && !used.has(candidate) && !byId.has(candidate) && wanted > base ? candidate : takeId()
+    used.add(id)
+    if (candidate && id === candidate && wanted !== null) next = Math.max(next, wanted)
     items.push(pendingItem(id, shape))
   }
 
@@ -228,9 +240,13 @@ export function mergeItems(rawList, { existing = [], counter = 0, limit = MAX_IT
     items,
     counter: Math.max(next, highestNumber(items, prefix)),
     kept,
-    reopened,
+    updated,
     dropped: Math.max(0, (Array.isArray(rawList) ? rawList.length : 0) - items.length),
   }
+}
+
+function unchangedAt(stored, changed) {
+  return changed ? Date.now() : stored.updatedAt
 }
 
 export function hydrateState(raw) {
@@ -246,7 +262,9 @@ export function hydrateState(raw) {
   state.revision = Number.isSafeInteger(raw.revision) && raw.revision >= 0 ? raw.revision : 0
   state.round = clampInt(raw.round, 1, 1e6, 1)
   state.roundDone = raw.roundDone === true
+  state.awaitingReport = raw.awaitingReport === true
   state.timeline = sanitizeTimeline(raw.timeline)
+  repairRounds(state)
   state.counters = {
     q: Math.max(clampInt(raw?.counters?.q, 0, 1e9, 0), highestNumber(state.decisions, 'Q')),
     p: Math.max(clampInt(raw?.counters?.p, 0, 1e9, 0), highestNumber(state.plan, 'P')),
@@ -254,7 +272,38 @@ export function hydrateState(raw) {
   return state
 }
 
-const ENTRY_KINDS = new Set(['questions', 'plan', 'requirement'])
+const ENTRY_KINDS = new Set(['questions', 'plan', 'requirement', 'report'])
+
+/**
+ * Regroup the timeline so a round holds its questions, plans and requirements,
+ * and only an execution report closes it. Older data that was split into
+ * several rounds (or that has no rounds at all) is repaired here.
+ */
+function repairRounds(state) {
+  if (!Array.isArray(state.timeline) || state.timeline.length === 0) {
+    state.round = 1
+    return
+  }
+  const buckets = [{ entries: [] }]
+  for (const entry of state.timeline) {
+    const current = buckets[buckets.length - 1]
+    const closed = current.entries.some((e) => e.kind === 'report')
+    if (entry.kind === 'questions' && closed) buckets.push({ entries: [] })
+    buckets[buckets.length - 1].entries.push({ ...entry })
+  }
+  const timeline = []
+  buckets.forEach((bucket, index) => {
+    const per = new Map()
+    for (const entry of bucket.entries) {
+      const batch = (per.get(entry.kind) ?? 0) + 1
+      per.set(entry.kind, batch)
+      timeline.push({ ...entry, round: index + 1, batch })
+    }
+  })
+  state.timeline = timeline
+  state.round = Math.max(1, buckets.length)
+  state.roundDone = buckets[buckets.length - 1].entries.some((e) => e.kind === 'report')
+}
 
 /** Stored timeline entries: shape checked, unknown kinds dropped. */
 function sanitizeTimeline(raw) {
@@ -347,7 +396,7 @@ export function publishDecisions(state, items, settings) {
       count: merged.items.length,
       pending,
       kept: merged.kept,
-      reopened: merged.reopened,
+      updated: merged.updated,
       truncated: merged.dropped > 0,
       belowMinPerBatch: pending > 0 && pending < (settings?.minPerBatch ?? 3),
       minPerBatch: settings?.minPerBatch ?? 3,
@@ -399,7 +448,7 @@ export function publishPlan(state, items, settings) {
       count: merged.items.length,
       pending: merged.items.filter((d) => d.status === 'pending').length,
       kept: merged.kept,
-      reopened: merged.reopened,
+      updated: merged.updated,
       round: next.round,
       mode: next.mode,
       revision: next.revision,
@@ -460,6 +509,7 @@ export function confirmAll(state, input, settings) {
     return settleItem(item, listKind, typeof picked === 'string' ? picked : '')
   })
 
+  const hadPendingPlan = next.plan.some((item) => item.status === 'pending')
   if (kind === 'all' || kind === 'decision') next.decisions = settleList(next.decisions, 'decision')
   if (kind === 'all' || kind === 'plan') next.plan = settleList(next.plan, 'plan')
 
@@ -472,14 +522,31 @@ export function confirmAll(state, input, settings) {
   if (customAnswers.length > 0) next.awaitingFollowup = true
 
   next.mode = recomputeMode(next, settings)
-  const planDone = settled(next.plan)
+  // Only a confirmation that settled plan items can finish a round. Confirming
+  // the questions of a cycle that already had a confirmed plan must not.
+  const planDone = hadPendingPlan
+    && settled(next.plan)
     && !hasPending(next.decisions)
     && !extra
     && customAnswers.length === 0
   const feedback = buildFeedback({ extra, customAnswers, planDone, count })
-  if (planDone) next.roundDone = true
+  if (planDone) next.awaitingReport = true
   next.revision = state.revision + 1
   return { state: next, count, customAnswers, planDone, feedback, mode: next.mode, round: next.round }
+}
+
+/**
+ * The execution report closes a round: the agent finished implementing a
+ * confirmed plan and told the user what it did.
+ */
+export function recordReport(state, text) {
+  const next = cloneState(state)
+  if (!next.awaitingReport) return { ok: false }
+  next.awaitingReport = false
+  next.roundDone = true
+  appendEntry(next, 'report', [], { text: textOf(text, 4000) })
+  next.revision = state.revision + 1
+  return { ok: true, state: next, round: next.round }
 }
 
 /** Single-item settle (kept for completeness; the panel uses the batch path). */

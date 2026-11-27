@@ -29,6 +29,7 @@ import {
   publishDecisions,
   publishPlan,
   recomputeMode,
+  recordReport,
   settleOne,
 } from './lib/core.js'
 
@@ -172,6 +173,7 @@ export function apply(ctx, config) {
   // and expired after ten minutes, so it can never become a permanent prompt block.
   const notices = new Map()
   const publishedSinceUser = new Set()
+  const lastAssistant = new Map()
   const NOTICE_TTL_MS = 10 * 60 * 1000
   const NOTICE_TEXT = 'NOTE: your previous reply wrote questions or plan content in chat without publishing. Publish with the panel tools; in chat reply only with the one-sentence template.'
   // Two-tier injection: a session gets the full discipline once per icon-on
@@ -502,7 +504,18 @@ export function apply(ctx, config) {
         publishedSinceUser.delete(sessionId)
         return
       }
-      if (event.type === 'turn/end') return
+      if (event.type === 'turn/end') {
+        // A stable round ends when its execution report reached the user.
+        const key = sessionKey(sessionId)
+        try {
+          const current = states.get(key)
+          if (current?.awaitingReport) {
+            const recorded = recordReport(current, lastAssistant.get(sessionId) ?? '')
+            if (recorded.ok) commitState(key, recorded.state)
+          }
+        } catch { /* best effort */ }
+        return
+      }
       if (event.type === 'tool/call') {
         const name = event.data?.name ?? event.data?.call?.name ?? ''
         if (typeof name === 'string' && name.startsWith('better_plan_publish_')) {
@@ -512,8 +525,10 @@ export function apply(ctx, config) {
         return
       }
       if (event.type === 'assistant/message') {
+        const text = assistantText(event.data?.message)
+        if (text) lastAssistant.set(sessionId, text)
         if (publishedSinceUser.has(sessionId)) return
-        if (looksLikePanelContent(assistantText(event.data?.message))) {
+        if (looksLikePanelContent(text)) {
           notices.set(sessionId, { at: Date.now(), text: NOTICE_TEXT })
         }
       }

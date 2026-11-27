@@ -76,6 +76,8 @@ window.__ModuleLoader__.load({
       batchQuestions: ['第 {n} 次提问', 'Questions #{n}'],
       batchPlan: ['第 {n} 次计划', 'Plan #{n}'],
       requirementEntry: ['其他要求', 'Additional requirement'],
+      reportEntry: ['执行报告', 'Execution report'],
+      updatedMark: ['内容已更新', 'Updated'],
       conflict: ['面板内容已更新，请重新查看后再确认', 'The panel was updated — review it again before confirming'],
       loadFailed: ['无法读取面板状态，稍后自动重试', 'Could not read the panel state; retrying automatically'],
       writeFailed: ['提交失败，请稍后重试', 'Submit failed — try again'],
@@ -442,7 +444,9 @@ window.__ModuleLoader__.load({
         h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 } },
           h('strong', { style: { fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.5 } },
             `${item.id}  ${item.question || item.title || ''}`),
-          h('span', { style: { ...statusStyle(item.status), flex: '0 0 auto' } }, statusLabel(item.status))
+          h('div', { style: { display: 'flex', gap: 6, alignItems: 'center', flex: '0 0 auto' } },
+            item.updated === true ? h('span', { style: { fontSize: 10, opacity: 0.65 } }, T.updatedMark) : null,
+            h('span', { style: { ...statusStyle(item.status), flex: '0 0 auto' } }, statusLabel(item.status)))
         ),
         body
       )
@@ -641,10 +645,11 @@ window.__ModuleLoader__.load({
       const fill = (template, n) => String(template).replace('{n}', String(n))
       const renderEntry = (entry) => {
         const key = `${entry.round}-${entry.kind}-${entry.batch}-${entry.at}`
-        if (entry.kind === 'requirement') {
+        if (entry.kind === 'requirement' || entry.kind === 'report') {
+          const report = entry.kind === 'report'
           return h('div', { key },
-            h('div', { style: dividerStyle }, T.requirementEntry),
-            h('div', { style: { fontSize: 12, whiteSpace: 'pre-wrap', opacity: 0.85 } }, entry.text || ''))
+            h('div', { style: dividerStyle }, report ? T.reportEntry : T.requirementEntry),
+            h('div', { style: { fontSize: 12, whiteSpace: 'pre-wrap', opacity: report ? 0.9 : 0.85, lineHeight: 1.6 } }, entry.text || ''))
         }
         const questions = entry.kind === 'questions'
         return h('div', { key },
@@ -732,9 +737,15 @@ window.__ModuleLoader__.load({
         ),
 
         h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
-          entries.length === 0
-            ? h('div', { style: { opacity: 0.7, fontSize: 12 } }, T.emptyQuestions)
-            : entries.map(renderEntry)
+          entries.length > 0
+            ? entries.map(renderEntry)
+            : decisions.length === 0 && plan.length === 0
+              ? h('div', { style: { opacity: 0.7, fontSize: 12 } }, T.emptyQuestions)
+              : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+                [
+                  ...decisions.map((d) => h(ItemCard, { key: 'd-' + d.id, item: d, kind: 'decision', draft: drafts[d.id], onDraft, readOnly: !isCurrent })),
+                  ...plan.map((p) => h(ItemCard, { key: 'p-' + p.id, item: p, kind: 'plan', draft: drafts[p.id], onDraft, readOnly: !isCurrent })),
+                ])
         ),
 
         h(SettingsSection, { settings: state?.settings || {}, onSave: saveSettings })
