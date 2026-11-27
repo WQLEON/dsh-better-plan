@@ -4,8 +4,11 @@
  * Everything here is a plain function over plain data so the plugin's
  * behaviour can be tested without a running Harness:
  *   - sanitising what a model publishes (never trusting its status/answer)
+ *   - merging a republished list into the settled one: an item whose id and
+ *     content are unchanged keeps its confirmed/rejected status, so the user is
+ *     never asked to confirm the same thing twice
+ *   - continuing the Q/P numbering across rounds, never reusing a number
  *   - the asking -> plan phase machine and its gates
- *   - settling questions/plan items from the panel
  *
  * A3 (kept by request): an answer that differs from the recommended option —
  * including a *preset* non-recommended option — counts as a "custom answer"
@@ -40,12 +43,14 @@ export function emptyState() {
     extraRequirements: [],
     pendingRequirements: [],
     awaitingFollowup: false,
+    // Highest number ever handed out for each prefix; numbers are never reused.
+    counters: { q: 0, p: 0 },
   }
 }
 
 export function cloneState(state) {
   const copy = JSON.parse(JSON.stringify(state))
-  return { ...emptyState(), ...copy }
+  return { ...emptyState(), ...copy, counters: { ...emptyState().counters, ...(copy.counters ?? {}) } }
 }
 
 export function sanitizeOptions(raw) {
@@ -70,36 +75,130 @@ export function sanitizeOptions(raw) {
 
 export function sanitizeId(raw, fallback) {
   const text = typeof raw === 'string' ? raw.trim() : ''
-  // Ids render as Q1 / P1: normalise any incoming casing to upper case.
   return (text || fallback).toUpperCase().slice(0, 40)
 }
 
+function shapeOf(raw) {
+  const o = raw && typeof raw === 'object' ? raw : {}
+  const options = sanitizeOptions(o.options)
+  const legacyRecommended = textOf(o.recommended)
+  if (options.length === 0 && legacyRecommended) {
+    options.push({ text: legacyRecommended, recommended: true })
+  }
+  return {
+    title: textOf(o.title),
+    question: textOf(o.question),
+    options,
+    recommended: legacyRecommended || (options.find((opt) => opt.recommended)?.text ?? ''),
+    detail: textOf(o.detail),
+  }
+}
+
+/** Content fingerprint: if it changes, a previously confirmed item is reopened. */
+export function signatureOf(item) {
+  return JSON.stringify([
+    item?.title ?? '',
+    item?.question ?? '',
+    item?.detail ?? '',
+    Array.isArray(item?.options) ? item.options.map((o) => [o.text, o.recommended === true]) : [],
+  ])
+}
+
+function pendingItem(id, shape) {
+  return { id, ...shape, answer: '', status: 'pending', updatedAt: Date.now() }
+}
+
 /**
- * Sanitise published items. The model is never trusted with lifecycle state:
- * `status` is always forced to `pending` and `answer` is dropped, so a model
- * cannot pre-confirm its own questions and skip the user's click.
+ * Legacy/simple sanitiser: forces every item to `pending` and numbers it from
+ * 1. Publishing goes through `mergeItems` instead; this stays for stored shape
+ * repair and for callers that explicitly want a fresh pending list.
  */
 export function sanitizeItems(raw, { limit = MAX_ITEMS, prefix = 'Q' } = {}) {
   if (!Array.isArray(raw)) return []
-  return raw.slice(0, limit ?? MAX_ITEMS).map((item, i) => {
-    const o = item && typeof item === 'object' ? item : {}
-    const options = sanitizeOptions(o.options)
-    const legacyRecommended = textOf(o.recommended)
-    if (options.length === 0 && legacyRecommended) {
-      options.push({ text: legacyRecommended, recommended: true })
+  return raw.slice(0, limit ?? MAX_ITEMS).map((item, i) => pendingItem(`${prefix}${i + 1}`, shapeOf(item)))
+}
+
+function numberFromId(id, prefix) {
+  if (typeof id !== 'string') return null
+  const match = new RegExp(`^${prefix}(\\d+)$`, 'i').exec(id.trim())
+  if (!match) return null
+  const n = Number(match[1])
+  return Number.isSafeInteger(n) && n > 0 ? n : null
+}
+
+function highestNumber(list, prefix) {
+  let max = 0
+  for (const item of list ?? []) {
+    const n = numberFromId(item?.id, prefix)
+    if (n !== null && n > max) max = n
+  }
+  return max
+}
+
+/**
+ * Merge a republished list into the settled one.
+ *
+ * - same id + same content  -> keep the stored item and its status/answer
+ * - same id + changed content -> same id, reopened as pending
+ * - new id above the counter  -> accepted as-is
+ * - anything else (missing id, a number already used, duplicates) -> next
+ *   free number, so ids continue Q1, Q2, … and are never reused
+ *
+ * Returns the merged list plus counters/accounting for the caller.
+ */
+export function mergeItems(rawList, { existing = [], counter = 0, limit = MAX_ITEMS, prefix = 'Q' } = {}) {
+  const list = Array.isArray(rawList) ? rawList.slice(0, limit ?? MAX_ITEMS) : []
+  const byId = new Map((existing ?? []).map((item) => [item.id, item]))
+  // The counter only reflects ids already handed out; ids in this batch are
+  // accepted when they are above it, so a fresh list keeps Q1, Q2, …
+  const base = Math.max(counter, highestNumber(existing, prefix))
+  let next = base
+  const used = new Set()
+  const items = []
+  let kept = 0
+  let reopened = 0
+
+  const takeId = () => {
+    do { next += 1 } while (used.has(`${prefix}${next}`) || byId.has(`${prefix}${next}`))
+    const id = `${prefix}${next}`
+    used.add(id)
+    return id
+  }
+
+  for (const raw of list) {
+    const shape = shapeOf(raw)
+    const wanted = numberFromId(raw?.id, prefix)
+    let id = null
+
+    if (wanted !== null) {
+      const candidate = `${prefix}${wanted}`
+      const stored = byId.get(candidate)
+      if (stored && !used.has(candidate)) {
+        id = candidate
+        used.add(candidate)
+        if (signatureOf(stored) === signatureOf(shape)) {
+          items.push(stored)
+          kept += 1
+          continue
+        }
+        reopened += 1
+      } else if (!stored && !used.has(candidate) && wanted > base) {
+        id = candidate
+        used.add(candidate)
+        next = Math.max(next, wanted)
+      }
     }
-    return {
-      id: sanitizeId(o.id, `${prefix}${i + 1}`),
-      title: textOf(o.title),
-      question: textOf(o.question),
-      options,
-      recommended: legacyRecommended || (options.find((opt) => opt.recommended)?.text ?? ''),
-      detail: textOf(o.detail),
-      answer: '',
-      status: 'pending',
-      updatedAt: Date.now(),
-    }
-  })
+    if (id === null) id = takeId()
+    items.push(pendingItem(id, shape))
+  }
+
+  return {
+    items,
+    counter: Math.max(next, highestNumber(items, prefix)),
+    kept,
+    reopened,
+    dropped: Math.max(0, (Array.isArray(rawList) ? rawList.length : 0) - items.length),
+  }
 }
 
 export function hydrateState(raw) {
@@ -113,6 +212,10 @@ export function hydrateState(raw) {
     .filter((x) => typeof x === 'string').slice(-MAX_EXTRA_ITEMS)
   state.awaitingFollowup = Array.isArray(raw.pendingRequirements) && raw.pendingRequirements.length > 0
   state.revision = Number.isSafeInteger(raw.revision) && raw.revision >= 0 ? raw.revision : 0
+  state.counters = {
+    q: Math.max(clampInt(raw?.counters?.q, 0, 1e9, 0), highestNumber(state.decisions, 'Q')),
+    p: Math.max(clampInt(raw?.counters?.p, 0, 1e9, 0), highestNumber(state.plan, 'P')),
+  }
   return state
 }
 
@@ -122,8 +225,7 @@ function sanitizeStored(raw, prefix) {
   return raw.slice(0, MAX_ITEMS).map((item, i) => {
     const o = item && typeof item === 'object' ? item : {}
     return {
-      ...sanitizeItems([o], { limit: 1, prefix })[0],
-      id: sanitizeId(o.id, `${prefix}${i + 1}`),
+      ...pendingItem(sanitizeId(o.id, `${prefix}${i + 1}`), shapeOf(o)),
       status: STATUS.has(o.status) ? o.status : 'pending',
       answer: textOf(o.answer),
       updatedAt: typeof o.updatedAt === 'number' ? o.updatedAt : Date.now(),
@@ -166,26 +268,35 @@ export function recomputeMode(state, settings) {
 
 export function publishDecisions(state, items, settings) {
   const next = cloneState(state)
-  const requested = Array.isArray(items) ? items.length : 0
   const limit = settings?.maxPerRound ?? 10
-  next.decisions = sanitizeItems(items, { limit, prefix: 'Q' })
+  const merged = mergeItems(items, {
+    existing: next.decisions,
+    counter: next.counters.q,
+    limit,
+    prefix: 'Q',
+  })
+  next.decisions = merged.items
+  next.counters = { ...next.counters, q: merged.counter }
   // Publishing a new round answers whatever requirement asked for it.
   next.pendingRequirements = []
   next.awaitingFollowup = false
   next.mode = recomputeMode(next, settings)
   next.revision = state.revision + 1
+  const pending = merged.items.filter((d) => d.status === 'pending').length
   return {
     state: next,
     result: {
       ok: true,
       kind: 'decision',
-      count: next.decisions.length,
-      truncated: requested > next.decisions.length,
-      belowMinPerRound: next.decisions.length > 0 && next.decisions.length < (settings?.minPerRound ?? 3),
+      count: merged.items.length,
+      pending,
+      kept: merged.kept,
+      reopened: merged.reopened,
+      truncated: merged.dropped > 0,
+      belowMinPerRound: pending > 0 && pending < (settings?.minPerRound ?? 3),
       minPerRound: settings?.minPerRound ?? 3,
       maxPerRound: limit,
       mode: next.mode,
-      pending: pendingCount(next) > 0,
       revision: next.revision,
     },
   }
@@ -201,6 +312,7 @@ export const GATE_MESSAGES = {
 /**
  * Publishing a plan is gated on the asking phase actually being over. The model
  * cannot skip the questions, the user's confirmation, or a pending follow-up.
+ * A republished plan keeps the items the user already confirmed.
  */
 export function publishPlan(state, items, settings) {
   const next = cloneState(state)
@@ -209,7 +321,14 @@ export function publishPlan(state, items, settings) {
   if (!settled(next.decisions)) return { ok: false, code: 'no_answers', mode: next.mode }
   if (confirmedCount(next.decisions) < (settings?.minTotal ?? 0)) return { ok: false, code: 'min_total', mode: next.mode }
 
-  next.plan = sanitizeItems(items, { limit: MAX_ITEMS, prefix: 'P' })
+  const merged = mergeItems(items, {
+    existing: next.plan,
+    counter: next.counters.p,
+    limit: MAX_ITEMS,
+    prefix: 'P',
+  })
+  next.plan = merged.items
+  next.counters = { ...next.counters, p: merged.counter }
   next.mode = 'plan'
   next.revision = state.revision + 1
   return {
@@ -218,9 +337,11 @@ export function publishPlan(state, items, settings) {
     result: {
       ok: true,
       kind: 'plan',
-      count: next.plan.length,
+      count: merged.items.length,
+      pending: merged.items.filter((d) => d.status === 'pending').length,
+      kept: merged.kept,
+      reopened: merged.reopened,
       mode: next.mode,
-      pending: pendingCount(next) > 0,
       revision: next.revision,
     },
   }
@@ -322,9 +443,4 @@ export function settleOne(state, input, settings) {
   const allDone = !hasPending(next.decisions) && !hasPending(next.plan) && next.plan.length > 0 && settled(next.plan)
   const feedback = buildFeedback({ extra: '', customAnswers: [], planDone: allDone, count: 1 })
   return { ok: true, state: next, item: list[index], feedback, mode: next.mode }
-}
-
-/** Trim the legacy shared snapshot into a session state (used by migration). */
-export function importLegacy(raw) {
-  return hydrateState(raw)
 }

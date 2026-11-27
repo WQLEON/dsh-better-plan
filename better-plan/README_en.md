@@ -2,14 +2,17 @@
 
 A DeepSeek Harness (DSH) web client plugin: a right-sidebar decision panel with a chat-input toggle.
 
-## What changed in 1.1.0
+## What changed in 1.2.0
 
 - **Per-session state**: every conversation gets its own snapshot (`$DSH_HOME/better-plan/<session>.json`), so two windows can never share or overwrite questions. The old shared snapshot is archived once and never read.
 - **No permanent "plan confirmed" prompt block**: a confirmation is delivered once as a `source.kind = better-plan` message to the owning session instead of being re-injected into every later request.
 - **Phase gates enforced on the host**: `minTotal`, `minPerRound` and `awaitingFollowup` are checked before a plan can be published; a model can no longer publish `status:"confirmed"` items to skip the user's click.
 - **Security**: mutating endpoints require same-origin JSON plus a per-process token, bodies are capped at 64 KB, and state files are written 0600.
 - **Panel UX**: visible errors, 409 conflict handling, drafts kept per tab, `Ctrl+Enter` submit, arrow-key option navigation, per-session reset, session-scoped pending badge.
-- `lib/core.js` holds the pure state machine; 31 tests run with `npm test`.
+- **Confirmed items are never asked twice**: republishing keeps every item whose id and content are unchanged, and reopens only the new or changed ones; plan items behave the same way.
+- **Numbering continues**: questions are always Q1, Q2, …, plans P1, P2, …; new items continue from the highest number used and numbers are never reused.
+- **Fixed footer**: "Other requirements" and "Confirm all" stay pinned to the bottom of the panel while the content scrolls.
+- `lib/core.js` holds the pure state machine; 39 tests run with `npm test`.
 
 ## Install from source (development, recommended)
 

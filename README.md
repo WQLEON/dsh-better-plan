@@ -19,8 +19,10 @@
 - **两阶段面板**：问题的推荐项预先选中，整批一次点击确认；点「其他想法…」可写自己的答案，选项不会折叠。
 - **会话隔离**：每个会话一份面板状态（`$DSH_HOME/better-plan/<session>.json`），两个窗口不会互相覆盖。
 - **不会被绕过**：模型发布的内容一律强制 `pending`；有待确认问题、待跟进要求或未达 `minTotal` 时，计划发布会被拒绝。
+- **已确认的不会重问**：重新发布时，id 与内容都没变的条目保持「已确认」，只有新增或改动的条目回到待确认；计划同理。
 - **可控成本**：开启时每次模型请求约多 1.7k 输入 token（纪律文本 + 两个工具），关闭后不再注入。
 - **面板体验**：错误可见、冲突提示、草稿按会话保留、`Ctrl+Enter` 提交、方向键选择、本会话重置、条件轮询（无变化回 304）。
+- **编号与底栏**：问题始终 Q1、Q2…，计划始终 P1、P2…，跨轮续号且不复用；「其他要求」与「全部确认」常驻面板底部。
 - **安全默认值**：写接口只接受本机同源请求，并要求一次性令牌。
 
 ## 安装
@@ -106,7 +108,7 @@ B. Postgres（要起服务）
 ```bash
 cd better-plan
 node --check index.js && node --check client.js && node --check lib/core.js
-npm test        # 31 个用例：状态机、门禁、CSRF、会话隔离、持久化、304
+npm test        # 39 个用例：状态机、合并/续号、门禁、CSRF、会话隔离、持久化、304
 ```
 
 纯逻辑在 [`lib/core.js`](better-plan/lib/core.js)，host 侧 [`index.js`](better-plan/index.js) 只做 I/O 与鉴权，
@@ -158,7 +160,8 @@ you confirm the same way — nothing is implemented before that.
 
 Highlights: per-session panel state (two windows never share questions), server-side phase gates the
 model cannot skip, a one-time confirmation message instead of a permanent prompt block, a token-guarded
-same-origin write API, and 31 tests covering the state machine, gates, CSRF and session isolation.
+same-origin write API, and 39 tests covering the state machine, merge/numbering, gates, CSRF and session isolation.
+Confirmed items keep their status when a list is republished, so nothing is asked twice.
 
 Install with `plugin_manager`'s `install_bundle`, pointing `target` at the absolute path of the
 `better-plan/` directory, then restart DSH and refresh the page. See [better-plan/README_en.md](better-plan/README_en.md).

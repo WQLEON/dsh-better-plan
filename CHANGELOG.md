@@ -2,32 +2,48 @@
 
 本项目的版本变化。版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
-## 未发布
-
-### 变更
-
-- 中文名定为「更好的计划模式」（Better Plan）：面板标签、输入框图标提示、locale、README 与详情图说明同步更新。
-
-### 仓库整理
-
-- 删除 vendored `node_modules` 里的自嵌套重复副本（`schemastery/schemastery`、`cosmokit/cosmokit`），体积 540K → 288K，依赖解析与 31 个测试不变。
-- 审计记录从 `.scratch/` 迁到 [`docs/audit/`](docs/audit/2026-11-27-better-plan.md)，删除未使用的 issue-tracker 约定，`AGENTS.md` 同步。
-- `better-plan/README.md` 的版本变更段改为指向 CHANGELOG，去掉与 CHANGELOG 重复的内容。
+## 1.2.0 — 2026-11-27
 
 ### 新增
 
-- `better-plan-skill/`：不依赖 DSH、不需要任何工具的可移植技能——`SKILL.md`（两阶段流程、轮次规则、确认语义）、
-  `references/grilling.md`、`references/domain-modeling.md` 与安装说明，可用于 Claude Code、Codex CLI、Cursor
-  或任意系统提示。
-- `THIRD_PARTY_NOTICES.md`：列明改写自 [mattpocock/skills](https://github.com/mattpocock/skills)（MIT）的部分、
-  改写方式与完整 MIT 文本。
+- **已确认项按 id 合并**：重新发布时，id 与内容（标题 / 问题 / 选项 / 详情）都没变的条目保持 confirmed
+  状态与答案，只有新增或改动的条目回到 pending；计划同理。用户不会在下一轮被要求重复确认同一件事。
+- **编号续号**：问题始终是 Q1、Q2…，计划始终是 P1、P2…；新条目从本会话已用过的最大号继续，旧号永不
+  复用（host 自动纠正，纪律文本同时约束）。
+- **底栏常驻**：「其他要求」与「全部确认」固定在决策面板底部，内容区独立滚动；无待确认项时按钮隐藏、
+  底栏随内容收缩。
+- **聊天提示模板**：发布后回复固定为「已提出 X 条问题待回复，决策面板已为您打开。」／
+  「已发布 X 条计划待确认，决策面板已为您打开。」
+- `better-plan-skill/`：不依赖 DSH、不需要任何工具的可移植技能——`SKILL.md`（两阶段流程、轮次规则、
+  确认语义）、`references/grilling.md`、`references/domain-modeling.md` 与安装说明，可用于 Claude Code、
+  Codex CLI、Cursor 或任意系统提示。
+- `THIRD_PARTY_NOTICES.md`：列明改写自 [mattpocock/skills](https://github.com/mattpocock/skills)（MIT）
+  的部分、改写方式与完整 MIT 文本。
+
+### 变更
+
+- 选项只放真实候选（至少 1 个、通常 2–3 个），不再用「其他想法…」占位；面板/对话自带自定义入口。
+- 明确命名边界：面板与侧栏标题仍叫「决策面板」；插件名「更好的计划模式」只用于插件列表、图标提示与设置项。
+- 中文名定为「更好的计划模式」（Better Plan）：locale、图标提示、README 与详情图说明同步更新。
+- 插件版本 1.1.0 → 1.2.0。
+
+### 仓库整理
+
+- 删除 vendored `node_modules` 里的自嵌套重复副本（`schemastery/schemastery`、`cosmokit/cosmokit`），
+  体积 540K → 288K，依赖解析与测试不变。
+- 审计记录从 `.scratch/` 迁到 [`docs/audit/`](docs/audit/2026-11-27-better-plan.md)，删除未使用的
+  issue-tracker 约定，`AGENTS.md` 同步。
+- `better-plan/README.md` 的版本变更段改为指向 CHANGELOG，去掉与 CHANGELOG 重复的内容。
 
 ### 文档
 
-- README 新增「可移植技能（任意智能体）」与「来源与致谢」两节。
-- 「来源与致谢」补充 `grill-with-docs`（两阶段组合方式）与 `grill-me`（grilling 简写入口）两条上游出处。
+- README 新增「可移植技能（任意智能体）」与「来源与致谢」两节，后者含 `grill-with-docs`（两阶段组合方式）
+  与 `grill-me`（grilling 简写入口）两条上游出处。
 - `better-plan/README.md` 与 `README_en.md` 补来源说明与可移植版本入口。
-- 插件运行时行为无变化，`better-plan` 版本仍为 1.1.0。
+
+### 工程
+
+- 测试 31 → 39：新增合并语义（保留已确认、改动重开）、续号与不复用、host 重发保留已确认等用例。
 
 ## 1.1.0 — 2026-11-27
 

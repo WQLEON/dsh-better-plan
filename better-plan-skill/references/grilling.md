@@ -10,7 +10,10 @@ settled: the questions you can ask _now_ without guessing at answers you haven't
 whole frontier in one round, each question with numbered options and your recommended answer
 pre-filled. Then wait for the user's answers before the next round.
 
-Every round is asked in the chat, never spread across files or a to-do list. Each question carries
+Number the questions Q1, Q2, … and continue the sequence in later rounds; never reuse a number.
+Options are real candidates only — never a placeholder like "其他想法…" or "Other idea…", because the
+chat already lets the user answer freely. Every round is asked in the chat, never spread across files
+or a to-do list. Each question carries
 2–5 clickable-in-prose options and exactly one recommended option, so the user settles a question
 with one word ("Q2A") or accepts the whole batch with "all recommended" / "全部按推荐".
 

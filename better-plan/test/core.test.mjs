@@ -84,7 +84,7 @@ test('plan publishes once the asking phase is settled', () => {
   assert.equal(out.state.mode, 'plan')
   assert.equal(out.state.plan[0].status, 'pending')
   assert.deepEqual(out.result, {
-    ok: true, kind: 'plan', count: 1, mode: 'plan', pending: true, revision: state.revision + 1,
+    ok: true, kind: 'plan', count: 1, pending: 1, kept: 0, reopened: 0, mode: 'plan', revision: state.revision + 1,
   })
 })
 
@@ -182,4 +182,73 @@ test('revision increases on every mutation and never goes backwards', () => {
   state = publishPlan(state, [{ id: 'P1', title: 's', detail: 'd' }], settings).state
   seen.push(state.revision)
   assert.deepEqual(seen, [0, 1, 2, 3])
+})
+
+test('republishing the same questions keeps confirmed answers', () => {
+  let state = publishDecisions(emptyState(), questions(3), settings).state
+  state = confirmAll(state, { answers: { Q1: 'A', Q2: 'A', Q3: 'A' } }, settings).state
+  const again = publishDecisions(state, questions(3), settings)
+  assert.equal(again.result.kept, 3)
+  assert.equal(again.result.reopened, 0)
+  assert.deepEqual(again.state.decisions.map((d) => d.status), ['confirmed', 'confirmed', 'confirmed'])
+  assert.deepEqual(again.state.decisions.map((d) => d.answer), ['A', 'A', 'A'])
+})
+
+test('changed content reopens only that item', () => {
+  let state = publishDecisions(emptyState(), questions(3), settings).state
+  state = confirmAll(state, { answers: { Q1: 'A', Q2: 'A', Q3: 'A' } }, settings).state
+  const changed = questions(3)
+  changed[1].question = 'a different body'
+  const again = publishDecisions(state, changed, settings)
+  assert.equal(again.result.kept, 2)
+  assert.equal(again.result.reopened, 1)
+  assert.deepEqual(again.state.decisions.map((d) => d.status), ['confirmed', 'pending', 'confirmed'])
+  assert.equal(again.state.decisions[1].id, 'Q2')
+})
+
+test('new questions continue the Q numbering', () => {
+  let state = publishDecisions(emptyState(), questions(3), settings).state
+  state = confirmAll(state, { answers: { Q1: 'A', Q2: 'A', Q3: 'A' } }, settings).state
+  const next = [{ id: 'Q4', title: 'new one', options: [{ text: 'A', recommended: true }] }]
+  const again = publishDecisions(state, next, settings)
+  assert.equal(again.state.decisions[0].id, 'Q4')
+  assert.equal(again.state.counters.q, 4)
+})
+
+test('a removed number is never reused', () => {
+  let state = publishDecisions(emptyState(), questions(3), settings).state
+  state = confirmAll(state, { answers: { Q1: 'A', Q2: 'A', Q3: 'A' } }, settings).state
+  // Q3 disappears from the list, then a new item claims Q3 again.
+  state = publishDecisions(state, questions(2), settings).state
+  const again = publishDecisions(state, [{ id: 'Q3', title: 'fresh' }], settings)
+  assert.notEqual(again.state.decisions[0].id, 'Q3')
+  assert.equal(again.state.decisions[0].id, 'Q4')
+})
+
+test('plans merge the same way and keep confirmed steps', () => {
+  const state = settledQuestions(3)
+  const plan = [{ id: 'P1', title: 'one', detail: 'd' }, { id: 'P2', title: 'two', detail: 'd' }]
+  const published = publishPlan(state, plan, settings).state
+  const confirmed = confirmAll(published, { kind: 'plan', answers: { P1: 'd', P2: 'd' } }, settings).state
+  const again = publishPlan(confirmed, [
+    { id: 'P1', title: 'one', detail: 'd' },
+    { id: 'P3', title: 'three', detail: 'd' },
+  ], settings)
+  assert.equal(again.result.kept, 1)
+  assert.equal(again.state.plan[0].status, 'confirmed')
+  assert.equal(again.state.plan[1].id, 'P3')
+  assert.equal(again.state.counters.p, 3)
+})
+
+test('reusing an existing id with new content reopens that slot (R2)', () => {
+  let state = publishDecisions(emptyState(), questions(2), settings).state
+  state = confirmAll(state, { answers: { Q1: 'A', Q2: 'A' } }, settings).state
+  // A model that forgot the counter sends two brand-new questions as Q1/Q2.
+  const again = publishDecisions(state, [
+    { id: 'Q1', title: 'brand new', options: [{ text: 'A', recommended: true }] },
+    { id: 'Q2', title: 'also new', options: [{ text: 'A', recommended: true }] },
+  ], settings)
+  assert.deepEqual(again.state.decisions.map((d) => d.id), ['Q1', 'Q2'])
+  assert.equal(again.result.reopened, 2)
+  assert.deepEqual(again.state.decisions.map((d) => d.status), ['pending', 'pending'])
 })

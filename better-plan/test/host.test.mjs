@@ -314,3 +314,54 @@ test('GET honours the revision cursor', async () => {
   assert.equal(fresh.status, 304)
   assert.equal(fresh.json, null)
 })
+
+test('republishing questions keeps what the user already confirmed', async () => {
+  const b = boot()
+  const session = { 'x-better-plan-session': 'session-merge' }
+  const token = (await state(b, session)).json.token
+  const headers = { ...session, 'x-better-plan-token': token }
+  const items = [
+    { id: 'Q1', title: 'one', options: [{ text: 'A', recommended: true }] },
+    { id: 'Q2', title: 'two', options: [{ text: 'A', recommended: true }] },
+  ]
+
+  const first = await post(b, { action: 'publish', kind: 'decision', items }, headers)
+  assert.equal(first.status, 200)
+  const revision = (await state(b, session)).json.revision
+
+  const confirmed = await post(b, { action: 'confirmAll', answers: { Q1: 'A', Q2: 'A' }, revision }, headers)
+  assert.equal(confirmed.status, 200)
+  assert.equal(confirmed.json.woken, false)
+
+  const nextRevision = (await state(b, session)).json.revision
+  const again = await post(b, { action: 'publish', kind: 'decision', items, revision: nextRevision }, headers)
+  assert.equal(again.status, 200)
+  assert.equal(again.json.kept, 2)
+  assert.deepEqual(again.json.decisions.map((d) => d.status), ['confirmed', 'confirmed'])
+  assert.deepEqual(again.json.decisions.map((d) => d.answer), ['A', 'A'])
+  assert.equal(again.json.counters.q, 2)
+})
+
+test('a changed question is reopened while the others stay confirmed', async () => {
+  const b = boot()
+  const session = { 'x-better-plan-session': 'session-reopen' }
+  const token = (await state(b, session)).json.token
+  const headers = { ...session, 'x-better-plan-token': token }
+  const items = [
+    { id: 'Q1', title: 'one', options: [{ text: 'A', recommended: true }] },
+    { id: 'Q2', title: 'two', options: [{ text: 'A', recommended: true }] },
+  ]
+  await post(b, { action: 'publish', kind: 'decision', items }, headers)
+  const revision = (await state(b, session)).json.revision
+  await post(b, { action: 'confirmAll', answers: { Q1: 'A', Q2: 'A' }, revision }, headers)
+
+  const changed = [
+    { id: 'Q1', title: 'one (revised)', options: [{ text: 'A', recommended: true }] },
+    { id: 'Q2', title: 'two', options: [{ text: 'A', recommended: true }] },
+  ]
+  const nextRevision = (await state(b, session)).json.revision
+  const again = await post(b, { action: 'publish', kind: 'decision', items: changed, revision: nextRevision }, headers)
+  assert.equal(again.json.reopened, 1)
+  assert.equal(again.json.kept, 1)
+  assert.deepEqual(again.json.decisions.map((d) => d.status), ['pending', 'confirmed'])
+})

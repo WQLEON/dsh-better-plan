@@ -30,8 +30,8 @@ window.__ModuleLoader__.load({
     /* [zh, en] pairs. Reading `T.key` resolves against the live language. */
     const DICT = {
       panel: ['决策面板', 'Decision panel'],
-      tab: ['更好的计划模式', 'Better plan'],
-      guide: ['更好的计划模式', 'Better plan'],
+      tab: ['决策面板', 'Decision panel'],
+      guide: ['决策面板', 'Decision panel'],
       iconOn: ['更好的计划模式已开启｜左键：关闭　右键：打开决策面板', 'better-plan on｜Left-click: turn off　Right-click: open the decision panel'],
       iconOff: ['更好的计划模式已关闭｜左键：开启　右键：打开决策面板', 'better-plan off｜Left-click: turn on　Right-click: open the decision panel'],
       asking: ['阶段一 · 提问', 'Phase 1 · Asking'],
@@ -608,7 +608,7 @@ window.__ModuleLoader__.load({
         : ''
 
       return h('div', {
-        style: { padding: 16, display: 'flex', flexDirection: 'column', gap: 14, height: '100%', boxSizing: 'border-box', overflowY: 'auto' },
+        style: { height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' },
         onKeyDown: (event) => {
           if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && (pendingTotal > 0 || extra.trim())) {
             event.preventDefault()
@@ -616,6 +616,9 @@ window.__ModuleLoader__.load({
           }
         },
       },
+        h('div', {
+          style: { flex: '1 1 auto', minHeight: 0, overflowY: 'auto', padding: '16px 16px 0', display: 'flex', flexDirection: 'column', gap: 14 },
+        },
         h('div', { 'aria-live': 'polite', style: visuallyHidden }, announcement),
         h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 } },
           h('h3', { style: { margin: 0, fontSize: 15 } }, T.panel),
@@ -660,7 +663,11 @@ window.__ModuleLoader__.load({
             )
         ),
 
-        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 } },
+        h(SettingsSection, { settings: state?.settings || {}, onSave: saveSettings })
+        ),
+        h('div', {
+          style: { flex: 'none', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 16px', display: 'flex', flexDirection: 'column', gap: 6 },
+        },
           h('div', { style: sectionHeading }, T.extraLabel),
           h('textarea', {
             value: extra,
@@ -676,8 +683,7 @@ window.__ModuleLoader__.load({
               background: 'transparent', color: 'inherit', outline: 'none',
             },
           }),
-          extra.trim() ? h('div', { style: { fontSize: 11, opacity: 0.7 } }, T.extraHint) : null
-        ),
+          extra.trim() ? h('div', { style: { fontSize: 11, opacity: 0.7 } }, T.extraHint) : null,
 
         pendingTotal > 0 || extra.trim() ? h('button', {
           type: 'button',
@@ -685,9 +691,8 @@ window.__ModuleLoader__.load({
           disabled: busy,
           'aria-busy': busy,
           onClick: confirmBatch,
-        }, extra.trim() ? T.submitWithExtra : `${T.confirmAll}（${pendingTotal}）`) : null,
-
-        h(SettingsSection, { settings: state?.settings || {}, onSave: saveSettings })
+        }, extra.trim() ? T.submitWithExtra : `${T.confirmAll}（${pendingTotal}）`) : null
+        )
       )
     }
 

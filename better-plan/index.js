@@ -237,6 +237,7 @@ export function apply(ctx, config) {
       enabled,
       revision: state.revision,
       mode: state.mode,
+      counters: state.counters,
       settings,
       pending: pendingDecisions + pendingPlan > 0,
       pendingCount: pendingDecisions + pendingPlan,

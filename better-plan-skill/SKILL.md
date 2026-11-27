@@ -39,7 +39,9 @@ Rules:
   dispatch a sub-agent when a fact needs its own context. Never ask the user something you could
   look up. Do not block the whole round on one fact — ask the questions that do not depend on it.
 - **A question that depends on an open question belongs to a later round.** Never guess its answer.
+- Number the questions Q1, Q2, … and continue the sequence in later rounds; never restart at Q1 and never reuse a number.
 - Keep each round to at most 10 questions; split a larger frontier across rounds.
+- Options are REAL candidates only (at least one, usually 2–3). Never add a placeholder such as "其他想法…" or "Other idea…": the chat already lets the user answer freely.
 - `all recommended` / `全部按推荐` / a bare `yes` accepts every recommended default at once.
 
 ## 2. A custom answer is never final
@@ -64,8 +66,10 @@ Ask for exactly one confirmation:
 
 Nothing is implemented before that `confirm`.
 
-Keep steps small and independently verifiable. The plan is a sequence, not a summary; do not
-restate the questions.
+Number the steps P1, P2, … and continue the sequence across revisions. Keep steps small and
+independently verifiable. The plan is a sequence, not a summary; do not restate the questions.
+Republishing a plan keeps every step whose id and text are unchanged confirmed — only new or
+changed steps are asked again.
 
 ## 4. Implement — and do not drift
 
