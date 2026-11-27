@@ -35,7 +35,7 @@ Verify: the input-box icon appears (with a badge when items wait), right-click o
 
 ## State and privacy
 
-State lives per session under `$DSH_HOME/better-plan/`, is written atomically with mode 0600, and is not removed by uninstalling the plugin. Writes are loopback-only, same-origin, and token-guarded, so a cross-site page cannot forge a confirmation.
+State lives per session under `$DSH_HOME/better-plan/`, is written atomically (mode 0600 requested; Windows ignores POSIX mode and relies on the profile ACL), and is not removed by uninstalling the plugin. Writes are loopback-only, same-origin, and token-guarded, so a cross-site page cannot forge a confirmation.
 
 ## Settings
 
@@ -55,3 +55,4 @@ cd better-plan && npm test
 - Remote (non-loopback) access is refused by design; the panel is local-only.
 - The icon toggle is app-wide, not per session.
 - Poll intervals: panel 2.5 s, icon 3 s, auto-open 2.5 s; paused while the page is hidden.
+- A dsh-unlag hot reload swaps code only: sessions that already exist may keep the prompt sections injected by the previous instance until DSH is restarted once.

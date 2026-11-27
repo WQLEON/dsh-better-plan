@@ -430,9 +430,26 @@ export function apply(ctx, config) {
 
   /* ------------------------------------------------------- system prompt */
 
+  const attachedAgents = new WeakSet()
+  const listAgents = () => {
+    // The agents service has changed shape across releases; try every known
+    // way before giving up, and never let enumeration break plugin startup.
+    try {
+      const agents = ctx.get?.('agents') ?? ctx.agents
+      if (!agents) return []
+      if (typeof agents.list === 'function') return agents.list() ?? []
+      if (typeof agents.values === 'function') return [...agents.values()]
+      if (agents instanceof Map) return [...agents.values()]
+      if (Array.isArray(agents.agents)) return agents.agents
+    } catch { /* fall through */ }
+    return []
+  }
+
   const attach = (agent) => {
+    if (!agent || attachedAgents.has(agent)) return
     const prompt = agent?.ctx?.get?.('systemPrompt')
     if (!prompt?.section) return
+    attachedAgents.add(agent)
     registerDisposer(prompt.section({
       name: SECTION_NAME,
       order: SECTION_ORDER,
@@ -441,7 +458,7 @@ export function apply(ctx, config) {
     }))
   }
   ctx.on('agent/created', ({ agent }) => attach(agent))
-  try { for (const agent of ctx.get?.('agents')?.list?.() ?? []) attach(agent) } catch { /* no agents yet */ }
+  for (const agent of listAgents()) attach(agent)
 
   /* ------------------------------------------------------------ settings */
 
