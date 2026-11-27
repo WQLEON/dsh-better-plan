@@ -4,6 +4,16 @@
 
 ## 未发布
 
+### 变更
+
+- 中文名定为「更好的计划模式」（Better Plan）：面板标签、输入框图标提示、locale、README 与详情图说明同步更新。
+
+### 仓库整理
+
+- 删除 vendored `node_modules` 里的自嵌套重复副本（`schemastery/schemastery`、`cosmokit/cosmokit`），体积 540K → 288K，依赖解析与 31 个测试不变。
+- 审计记录从 `.scratch/` 迁到 [`docs/audit/`](docs/audit/2026-11-27-better-plan.md)，删除未使用的 issue-tracker 约定，`AGENTS.md` 同步。
+- `better-plan/README.md` 的版本变更段改为指向 CHANGELOG，去掉与 CHANGELOG 重复的内容。
+
 ### 新增
 
 - `better-plan-skill/`：不依赖 DSH、不需要任何工具的可移植技能——`SKILL.md`（两阶段流程、轮次规则、确认语义）、

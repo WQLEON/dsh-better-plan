@@ -30,10 +30,10 @@ window.__ModuleLoader__.load({
     /* [zh, en] pairs. Reading `T.key` resolves against the live language. */
     const DICT = {
       panel: ['决策面板', 'Decision panel'],
-      tab: ['决策面板', 'Decision panel'],
-      guide: ['决策面板', 'Decision panel'],
-      iconOn: ['better-plan 已开启｜左键：关闭　右键：打开决策面板', 'better-plan on｜Left-click: turn off　Right-click: open the decision panel'],
-      iconOff: ['better-plan 已关闭｜左键：开启　右键：打开决策面板', 'better-plan off｜Left-click: turn on　Right-click: open the decision panel'],
+      tab: ['更好的计划模式', 'Better plan'],
+      guide: ['更好的计划模式', 'Better plan'],
+      iconOn: ['更好的计划模式已开启｜左键：关闭　右键：打开决策面板', 'better-plan on｜Left-click: turn off　Right-click: open the decision panel'],
+      iconOff: ['更好的计划模式已关闭｜左键：开启　右键：打开决策面板', 'better-plan off｜Left-click: turn on　Right-click: open the decision panel'],
       asking: ['阶段一 · 提问', 'Phase 1 · Asking'],
       planning: ['阶段二 · 计划', 'Phase 2 · Plan'],
       questions: ['提问', 'Ask'],
@@ -54,7 +54,7 @@ window.__ModuleLoader__.load({
       chosen: ['已选答案', 'Chosen'],
       allDone: ['全部确认完毕', 'Everything is confirmed'],
       settings: ['设置', 'Settings'],
-      defOn: ['默认开启 Better Plan 模式', 'Default Better Plan mode'],
+      defOn: ['默认开启更好的计划模式', 'Default Better Plan mode'],
       minPerRound: ['每轮最少问题数', 'Min questions / round'],
       maxPerRound: ['每轮最多问题数', 'Max questions / round'],
       minTotal: ['问题总量下限', 'Min questions in total'],

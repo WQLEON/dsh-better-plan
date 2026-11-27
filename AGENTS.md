@@ -1,9 +1,9 @@
-# Agent skills
-
-## Issue tracker
-
-Issues and specs are tracked as local markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
+# Agent notes
 
 ## Domain docs
 
 Single-context layout: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+## Audit trail
+
+Engineering audits live in `docs/audit/`, one file per audit, with the findings and their fix status.

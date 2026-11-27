@@ -1,4 +1,4 @@
-# Better Plan
+# 更好的计划模式（Better Plan）
 
 一个 DeepSeek Harness（DSH）Web 客户端插件：把「先提问、再计划」的两阶段协作流程搬到右侧边栏的决策面板里，用**一次点击**确认整批内容。
 
@@ -82,9 +82,9 @@ B. Postgres（要起服务）
 │   ├── SKILL.md               # 两阶段流程本体
 │   ├── references/            # grilling / domain-modeling
 │   └── README.md              # 安装与差异说明
-├── docs/agents/               # 领域文档与 issue tracker 约定
-│   ├── domain.md
-│   └── issue-tracker.md
+├── docs/agents/               # 领域文档约定
+│   └── domain.md
+├── docs/audit/                # 工程审计记录（含修复状态）
 └── better-plan/               # 插件本体
     ├── index.js               # Host 侧：路由、工具、鉴权、会话状态、持久化
     ├── client.js              # Client 侧：右侧面板、输入框图标
