@@ -83,6 +83,7 @@ B. Postgres（要起服务）
 ├── README.md                  # 本文件
 ├── .editorconfig / .gitattributes
 ├── .github/workflows/test.yml # CI：语法检查 + node --test
+├── assets/icon-180.png        # 插件市场卡片图标（180×180）
 ├── THIRD_PARTY_NOTICES.md     # 改写自 mattpocock/skills 的 MIT 声明
 ├── better-plan-skill/         # 可移植技能（非 DSH 智能体）
 │   ├── SKILL.md               # 两阶段流程本体
