@@ -2,23 +2,25 @@
 
 DSH Web 客户端插件：右侧边栏的决策面板 + 输入框功能开关图标。
 
+## 1.1.0 变更（相对 1.0.0）
+
+- **会话级状态**：每个会话一份快照 `$DSH_HOME/better-plan/<session>.json`，两个窗口不再串台；旧的共享 `better-plan-state.json` 只做一次性归档，不再读取。
+- **不再有常驻的「计划已确认」注入**：确认只作为一条 `source.kind = better-plan` 的消息投递给对应会话一次，不再永久写进系统提示。
+- **阶段守卫**：`minTotal`、`minPerRound`、`awaitingFollowup` 在 host 侧真正生效；模型不能发布 `status:"confirmed"` 绕过用户点击。
+- **安全**：写接口要求同源 `application/json` + 本进程令牌（`x-better-plan-token`），请求体上限 64 KB，状态文件 0600。
+- **面板体验**：错误可见、409 冲突提示、草稿在标签页内保留、`Ctrl+Enter` 提交、方向键可在选项间移动、可重置本会话、等待确认的徽标按会话统计。
+- 新增 `lib/core.js` 纯状态机与 31 个测试（`npm test`），打包补 `engines.dsh` / `license` / `docs`。
+
 ## 安装到另一台电脑
 
 前提：那台机器已装 DeepSeek Harness（Desktop 或 Web 均可），并能访问 `plugin_manager`。
 
 ### 1. 解压
 
-把 `better-plan-workspace-*.zip` 解压到任意位置，例如：
-
-```
-D:\plugins\better-plan-workspace
-```
-
+把 `better-plan-workspace-*.zip` 解压到任意位置，例如 `D:\plugins\better-plan-workspace`。
 解压后应能看到 `better-plan/` 目录与它旁边的 `README.md`、`LICENSE`、`AGENTS.md`。
 
 ### 2. 安装插件
-
-用 `plugin_manager` 工具，`action = install_bundle`，`target` 必须是**绝对路径**，指向插件目录本身（不是工作区根）：
 
 ```json
 {
@@ -28,30 +30,26 @@ D:\plugins\better-plan-workspace
 }
 ```
 
-返回 `"application": "applied"` 即为成功。若返回 `failed`，diagnostic 字段会给出原因。
-
-> 注意：`target` 不能是相对路径，也不能用 `~`。Windows 下请写成完整的盘符路径。
+`target` 必须是**绝对路径**，指向插件目录本身（不是工作区根），不能用 `~`。
+返回 `"application": "applied"` 即为成功；`failed` 时诊断字段会给出原因。
 
 ### 3. 重启并刷新
 
-Host 侧与客户端代码都需要重新加载：
-
-1. 完全退出 DSH
-2. 重新启动
-3. 在浏览器里刷新页面（Ctrl+R / F5）
+Host 侧与客户端代码都需要重新加载：完全退出 DSH → 重新启动 → 浏览器刷新（Ctrl+R / F5）。
+若本机启用了 `dsh-unlag` 的热重载，用它的刷新按钮即可，无需退出应用。
 
 ### 4. 验证
 
-- 输入框最左侧出现 better-plan 图标
-- 右键图标，或等待自动展开，右侧出现「决策面板」
-- 面板里能看到「提问」「计划」「其他要求」三个区块
-
-命令行验证（端口以你本机实际为准）：
+- 输入框最左侧出现 better-plan 图标，有待确认条目时带数字徽标
+- 右键图标（或等它自动展开）打开「决策面板」
+- 命令行验证（端口以本机为准）：
 
 ```bash
-curl http://127.0.0.1:<port>/plugins/better-plan/state
-# 期望：{"mode":"asking","enabled":true,...}
+curl -s http://127.0.0.1:<port>/plugins/better-plan/state
+# 期望：{"ok":true,"sessionScoped":false,"enabled":true,"revision":0,...}
 ```
+
+不带 `x-better-plan-session` 头时读到的是 `default` 桶，仅用于调试；面板始终带会话头。
 
 ## 使用
 
@@ -60,27 +58,40 @@ curl http://127.0.0.1:<port>/plugins/better-plan/state
 | 左键点图标 | 开启 / 关闭 Better Plan 纪律（浅蓝=开，灰=关） |
 | 右键点图标 | 打开决策面板 |
 | 面板底部「全部确认」 | 一次接受所有预选答案 |
-| 某条点「其他想法…」 | 展开输入框写自己的答案，选项不会被折叠 |
-| 面板底部「其他要求」 | 写补充要求；提交后智能体会先追问，不会直接实施 |
+| 点某个非推荐选项 | 会被当成自定义答案，智能体再追问一轮（**这是刻意保留的行为**） |
+| 「其他想法…」 | 展开输入框写自己的答案，选项不会被折叠 |
+| `Ctrl+Enter` | 等同于点「全部确认」 |
+| 「其他要求」 | 提交后智能体先追问，不会直接实施 |
+| 「重置本会话面板」 | 清空当前会话的问题与计划（连点两次确认），不影响其他窗口 |
+
+## 状态与隐私
+
+- 面板状态按会话保存在 `$DSH_HOME/better-plan/`，一个会话一个文件（含 `revision`），原子写入、权限 0600。
+- 插件卸载后这些文件不会自动删除；确认不再需要后可整目录删除。
+- 纪律文本只在开关打开时注入系统提示；开关关闭后不再注入，确认也不会唤醒智能体。
+- 写接口只接受 loopback 且同源的请求，并需要 GET `/state` 返回的一次性令牌，跨站页面无法伪造确认。
 
 ## 设置
 
-面板底部的可折叠「设置」区：
+面板底部可折叠「设置」区（保存后立即生效，无需重启）：
 
 - **默认开启 Better Plan 模式** —— 只决定插件激活时的初始状态，不影响当前开关
 - **每轮最少 / 最多问题数** —— 下限 3，上限默认 10
-- **问题总量下限** —— 0 表示不限
-- **有待确认时自动展开面板**
+- **问题总量下限** —— 0 表示不限；大于 0 时未达标不能发布计划
+- **有待确认时自动展开面板** —— 只在「待确认条目集合变化」时自动展开，保存设置不会弹面板
 
-## 卸载
+## 开发与测试
 
-```json
-{ "action": "remove_bundle", "target": "better-plan" }
+```bash
+cd better-plan
+npm test          # node --test，31 个用例：状态机 + host 路由/门禁/CSRF/会话隔离
 ```
 
-或运行 `/plugin` 相关命令在插件管理页移除。
+纯逻辑在 `lib/core.js`，host 侧 `index.js` 只做 I/O 与鉴权，客户端 `client.js` 负责渲染与轮询（条件 GET，空闲时返回 304）。
 
 ## 已知限制
 
-- 面板文案支持中文与英文，跟随 DSH 界面语言；其他语言回落英文
-- `$DSH_HOME/better-plan-state.json` 是**本机运行时数据**（提问与计划），不属于安装包内容，也不会随 zip 转移
+- 面板文案支持中文与英文，跟随 DSH 界面语言；其他语言回落英文（字符串在 `client.js`，符合 DSH 客户端插件的惯例，`locale/*.json` 只放 `meta`）
+- 远程访问（非 loopback）场景下写接口按设计返回 403，面板只在本机可用
+- 图标开关是应用级设置，不是按会话的
+- 轮询间隔：面板 2.5s、图标 3s、自动展开 2.5s；页面隐藏时暂停

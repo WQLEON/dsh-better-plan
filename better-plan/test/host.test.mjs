@@ -1,0 +1,316 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+import { apply } from '../index.js'
+
+const home = mkdtempSync(join(tmpdir(), 'better-plan-host-'))
+process.env.DSH_HOME = home
+// A previous better-plan version shared one snapshot across every session.
+writeFileSync(join(home, 'better-plan-state.json'), JSON.stringify({ plan: [{ id: 'P9', title: 'other window' }] }))
+test.after(() => rmSync(home, { recursive: true, force: true }))
+
+function fakeReq({ method = 'GET', headers = {}, body } = {}) {
+  return {
+    method,
+    headers,
+    async *[Symbol.asyncIterator]() {
+      if (body !== undefined) yield Buffer.from(typeof body === 'string' ? body : JSON.stringify(body))
+    },
+  }
+}
+function fakeRes() {
+  return {
+    status: 0,
+    headers: {},
+    body: '',
+    writeHead(status, headers) { this.status = status; this.headers = headers || {} },
+    end(body) { this.body = body == null ? '' : String(body) },
+  }
+}
+
+/** Boot the host plugin against a minimal fake Cordis context. */
+function boot(config = {}) {
+  const handlers = new Map()
+  const tools = new Map()
+  const sections = []
+  const agents = new Map()
+  const listeners = new Map()
+  const ctx = {
+    logger: { info() {}, warn() {} },
+    fiber: {},
+    effect(fn) { return fn() },
+    on(event, handler) {
+      const list = listeners.get(event) || []
+      list.push(handler)
+      listeners.set(event, list)
+      return () => {}
+    },
+    get(name) {
+      if (name === 'agents') return { list: () => [...agents.values()], get: (id) => agents.get(id) }
+      return undefined
+    },
+    webServer: {
+      register({ path, handler }) {
+        handlers.set(path, handler)
+        return () => handlers.delete(path)
+      },
+    },
+    tools: {
+      register(def) {
+        tools.set(def.name, def)
+        return () => tools.delete(def.name)
+      },
+    },
+    agents: { get: (id) => agents.get(id) },
+  }
+  apply(ctx, config)
+
+  const call = async (path, req) => {
+    const res = fakeRes()
+    await handlers.get(path)(req, res)
+    return { status: res.status, json: res.body ? JSON.parse(res.body) : null }
+  }
+  return { ctx, handlers, tools, sections, agents, listeners, call }
+}
+
+const SESSION = 'session-test-0001'
+const headers = (extra = {}) => ({ host: '127.0.0.1:58478', ...extra })
+
+async function state(booted, extraHeaders = {}) {
+  return booted.call('/plugins/better-plan/state', fakeReq({ headers: headers(extraHeaders) }))
+}
+async function post(booted, body, extraHeaders = {}) {
+  return booted.call('/plugins/better-plan/state', fakeReq({
+    method: 'POST',
+    headers: headers({ 'content-type': 'application/json', 'sec-fetch-site': 'same-origin', ...extraHeaders }),
+    body,
+  }))
+}
+
+test('state is session scoped', async () => {
+  const b = boot()
+  const a = await state(b, { 'x-better-plan-session': 'session-a' })
+  const token = a.json.token
+  assert.ok(token, 'a token is handed out')
+  await post(b, {
+    action: 'publish',
+    kind: 'decision',
+    items: [{ id: 'Q1', title: 'A only', options: [{ text: 'yes', recommended: true }] }],
+  }, { 'x-better-plan-session': 'session-a', 'x-better-plan-token': token })
+
+  const onlyA = await state(b, { 'x-better-plan-session': 'session-a' })
+  const otherB = await state(b, { 'x-better-plan-session': 'session-b' })
+  assert.equal(onlyA.json.decisions.length, 1)
+  assert.equal(otherB.json.decisions.length, 0, 'another session must not see A\'s questions')
+  assert.equal(otherB.json.sessionScoped, true)
+})
+
+test('mutations are refused without a token or with a cross-site request', async () => {
+  const b = boot()
+  const token = (await state(b, { 'x-better-plan-session': SESSION })).json.token
+  const body = { action: 'reset' }
+
+  const noToken = await b.call('/plugins/better-plan/state', fakeReq({
+    method: 'POST',
+    headers: headers({ 'content-type': 'application/json', 'x-better-plan-session': SESSION }),
+    body,
+  }))
+  assert.equal(noToken.status, 403)
+
+  const wrongType = await b.call('/plugins/better-plan/state', fakeReq({
+    method: 'POST',
+    headers: headers({ 'content-type': 'text/plain', 'x-better-plan-session': SESSION, 'x-better-plan-token': token }),
+    body,
+  }))
+  assert.equal(wrongType.status, 415)
+
+  const crossSite = await b.call('/plugins/better-plan/state', fakeReq({
+    method: 'POST',
+    headers: headers({
+      'content-type': 'application/json', 'x-better-plan-session': SESSION,
+      'x-better-plan-token': token, 'sec-fetch-site': 'cross-site',
+    }),
+    body,
+  }))
+  assert.equal(crossSite.status, 403)
+
+  const foreignOrigin = await b.call('/plugins/better-plan/state', fakeReq({
+    method: 'POST',
+    headers: headers({
+      'content-type': 'application/json', 'x-better-plan-session': SESSION,
+      'x-better-plan-token': token, origin: 'https://evil.example',
+    }),
+    body,
+  }))
+  assert.equal(foreignOrigin.status, 403)
+
+  const nonLoopback = await b.call('/plugins/better-plan/state', fakeReq({
+    method: 'GET', headers: { host: '10.0.0.7:58478' },
+  }))
+  assert.equal(nonLoopback.status, 403)
+})
+
+test('a stale panel revision is refused instead of overwriting newer state', async () => {
+  const b = boot()
+  const token = (await state(b, { 'x-better-plan-session': SESSION })).json.token
+  await post(b, { action: 'publish', kind: 'decision', items: [{ id: 'Q1', title: 't' }] },
+    { 'x-better-plan-session': SESSION, 'x-better-plan-token': token })
+  const conflict = await post(b, { action: 'reset', revision: 0 },
+    { 'x-better-plan-session': SESSION, 'x-better-plan-token': token })
+  assert.equal(conflict.status, 409)
+  assert.equal(conflict.json.error, 'revision_conflict')
+})
+
+test('tools publish into the calling agent\'s session only', async () => {
+  const b = boot()
+  const tool = b.tools.get('better_plan_publish_decisions')
+  const noAgent = await tool.execute({ items: [{ id: 'Q1', title: 't' }] }, {})
+  assert.equal(noAgent.ok, false)
+  assert.equal(noAgent.code, 'no_session')
+
+  const agentA = { session: { id: 'session-tool-a' } }
+  await tool.execute({ items: [{ id: 'Q1', title: 'from tool' }] }, { agent: agentA })
+  const a = await state(b, { 'x-better-plan-session': 'session-tool-a' })
+  const z = await state(b, { 'x-better-plan-session': 'session-tool-z' })
+  assert.equal(a.json.decisions.length, 1)
+  assert.equal(a.json.decisions[0].status, 'pending', 'published items are never pre-confirmed')
+  assert.equal(z.json.decisions.length, 0)
+})
+
+test('the plan tool refuses to skip the asking phase', async () => {
+  const b = boot()
+  const planTool = b.tools.get('better_plan_publish_items')
+  const agent = { session: { id: 'session-gate' } }
+  const refused = await planTool.execute({ items: [{ id: 'P1', title: 's', detail: 'd' }] }, { agent })
+  assert.equal(refused.ok, false)
+  assert.equal(refused.code, 'no_answers')
+
+  const decisionTool = b.tools.get('better_plan_publish_decisions')
+  await decisionTool.execute({ items: [{ id: 'Q1', title: 'q', options: [{ text: 'a', recommended: true }] }] }, { agent })
+  const stillPending = await planTool.execute({ items: [{ id: 'P1', title: 's', detail: 'd' }] }, { agent })
+  assert.equal(stillPending.code, 'questions_pending')
+})
+
+test('confirmation wakes the exact agent with plugin-sourced context', async () => {
+  const b = boot()
+  const token = (await state(b, { 'x-better-plan-session': 'session-wake' })).json.token
+  await post(b, {
+    action: 'publish',
+    kind: 'decision',
+    items: [{ id: 'Q1', title: 'q', options: [{ text: 'a', recommended: true }] }],
+  }, { 'x-better-plan-session': 'session-wake', 'x-better-plan-token': token })
+
+  const sent = []
+  const agent = {
+    session: { id: 'session-wake' },
+    followup(message) { sent.push(message) },
+  }
+  b.ctx.agents.get = (id) => (id === 'session-wake' ? agent : undefined)
+
+  const res = await post(b, {
+    action: 'confirmAll', kind: 'all', answers: { Q1: 'a' },
+  }, { 'x-better-plan-session': 'session-wake', 'x-better-plan-token': token, 'x-better-plan-revision': '1' })
+  assert.equal(res.status, 200)
+  assert.equal(res.json.woken, true)
+  assert.equal(sent.length, 1)
+  assert.equal(sent[0].role, 'user')
+  assert.equal(sent[0].source.kind, 'better-plan')
+  assert.match(sent[0].content[0].text, /user confirmed 1 item/)
+})
+
+test('confirmations are not delivered while the feature is off', async () => {
+  const b = boot()
+  const token = (await state(b, { 'x-better-plan-session': 'session-off' })).json.token
+  await post(b, {
+    action: 'publish', kind: 'decision', items: [{ id: 'Q1', title: 'q', options: [{ text: 'a', recommended: true }] }],
+  }, { 'x-better-plan-session': 'session-off', 'x-better-plan-token': token })
+
+  const sent = []
+  b.ctx.agents.get = () => ({ followup: (m) => sent.push(m) })
+
+  const toggled = await b.call('/plugins/better-plan/toggle', fakeReq({
+    method: 'POST',
+    headers: headers({ 'content-type': 'application/json', 'x-better-plan-token': token }),
+    body: { enabled: false },
+  }))
+  assert.equal(toggled.status, 200)
+  assert.equal(toggled.json.enabled, false)
+
+  const res = await post(b, { action: 'confirmAll', answers: { Q1: 'a' } },
+    { 'x-better-plan-session': 'session-off', 'x-better-plan-token': token, 'x-better-plan-revision': '1' })
+  assert.equal(res.json.woken, false)
+  assert.equal(sent.length, 0)
+})
+
+test('the discipline section is empty while the feature is off', async () => {
+  const b = boot()
+  const token = (await state(b, { 'x-better-plan-session': 'session-prompt' })).json.token
+  const prompts = []
+  const agent = {
+    session: { id: 'session-prompt' },
+    ctx: { get: (name) => (name === 'systemPrompt' ? { section: (options) => { prompts.push(options); return () => {} } } : undefined) },
+  }
+  for (const handler of b.listeners.get('agent/created') || []) handler({ agent })
+  assert.equal(prompts.length, 1)
+  const text = () => prompts[0].text({ scope: agent })
+  assert.match(text(), /better-plan discipline auto-applied/)
+  await b.call('/plugins/better-plan/toggle', fakeReq({
+    method: 'POST',
+    headers: headers({ 'content-type': 'application/json', 'x-better-plan-token': token }),
+    body: { enabled: false },
+  }))
+  assert.equal(text(), '')
+})
+
+test('settings persist in memory and rebuild the injected discipline', async () => {
+  const b = boot()
+  const token = (await state(b, { 'x-better-plan-session': 'session-settings' })).json.token
+  const prompts = []
+  const agent = {
+    session: { id: 'session-settings' },
+    ctx: { get: () => ({ section: (options) => { prompts.push(options); return () => {} } }) },
+  }
+  for (const handler of b.listeners.get('agent/created') || []) handler({ agent })
+
+  const saved = await post(b, { action: 'settings', settings: { minPerRound: 4, maxPerRound: 6 } },
+    { 'x-better-plan-session': 'session-settings', 'x-better-plan-token': token })
+  assert.equal(saved.status, 200)
+  assert.equal(saved.json.settings.minPerRound, 4)
+  assert.equal(saved.json.settings.maxPerRound, 6)
+  assert.match(prompts[0].text({ scope: agent }), /between 4 and 6 questions/)
+})
+
+test('state survives a plugin reload through the per-session file', async () => {
+  const first = boot()
+  const token = (await state(first, { 'x-better-plan-session': 'session-persist' })).json.token
+  await post(first, { action: 'publish', kind: 'decision', items: [{ id: 'Q1', title: 'persisted' }] },
+    { 'x-better-plan-session': 'session-persist', 'x-better-plan-token': token })
+
+  const second = boot()
+  const res = await state(second, { 'x-better-plan-session': 'session-persist' })
+  assert.equal(res.json.decisions.length, 1)
+  assert.equal(res.json.decisions[0].title, 'persisted')
+  assert.equal(res.json.revision, 1)
+})
+
+test('a stale legacy shared snapshot is archived, never adopted', async () => {
+  const b = boot()
+  const res = await state(b, { 'x-better-plan-session': 'session-legacy' })
+  assert.equal(res.json.decisions.length, 0)
+  assert.equal(res.json.plan.length, 0)
+  const archived = readdirSync(join(home, 'better-plan')).filter((f) => f.startsWith('legacy-'))
+  assert.ok(archived.length > 0, 'the legacy file is preserved as a copy')
+})
+
+test('GET honours the revision cursor', async () => {
+  const b = boot()
+  await state(b, { 'x-better-plan-session': 'session-since' })
+  const fresh = await b.call('/plugins/better-plan/state', fakeReq({
+    headers: headers({ 'x-better-plan-session': 'session-since', 'x-better-plan-since': '0' }),
+  }))
+  assert.equal(fresh.status, 304)
+  assert.equal(fresh.json, null)
+})

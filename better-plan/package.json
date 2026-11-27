@@ -1,9 +1,19 @@
 {
   "name": "better-plan",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "type": "module",
   "description": "Two-phase grilling-then-planning agent with a right-sidebar confirmation panel.",
+  "license": "MIT",
+  "author": "WQLEON",
+  "type": "module",
+  "icon": "icon.svg",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0",
+    "dsh": ">=0.2.2-rc.5"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
@@ -22,17 +32,20 @@
     ".": "./index.js",
     "./client": "./client.js",
     "./locale/*.json": "./locale/*.json",
-    "./icon": "./icon.svg"
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
   },
   "files": [
     "index.js",
     "client.js",
     "disciplines.js",
+    "lib/core.js",
     "cordis.patch.yml",
-    "locale/en.json",
-    "locale/zh.json",
-    "docs/DETAIL.md",
+    "locale/*.json",
+    "docs",
     "icon.svg",
+    "README.md",
+    "README_en.md",
     "node_modules"
   ],
   "dependencies": {

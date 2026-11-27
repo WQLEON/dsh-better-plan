@@ -19,20 +19,33 @@
 ├── AGENTS.md                  # 仓库的智能体协作约定
 ├── LICENSE                    # MIT
 ├── README.md                  # 本文件
+├── .github/workflows/test.yml # CI：语法检查 + node --test
 ├── docs/agents/               # 领域文档与 issue tracker 约定
 │   ├── domain.md
 │   └── issue-tracker.md
 └── better-plan/               # 插件本体
-    ├── index.js               # Host 侧：工具、路由、状态机、持久化
+    ├── index.js               # Host 侧：路由、工具、鉴权、会话状态、持久化
     ├── client.js              # Client 侧：右侧面板、输入框图标
     ├── disciplines.js         # 内置的提问 / 计划纪律文本
+    ├── lib/core.js            # 纯状态机（可脱离 Harness 单测）
+    ├── test/                  # node --test 用例：core + host
     ├── cordis.patch.yml       # 插件装载行
     ├── package.json
-    ├── locale/{en,zh}.json
-    ├── docs/DETAIL.md
+    ├── locale/{en,zh}.json    # 仅 meta（标题 / 描述 / 详情文档）
+    ├── docs/DETAIL{,.zh}.md   # 详情页：一张预览图
+    ├── docs/preview.svg
     ├── icon.svg
-    ├── README.md              # 安装细节
+    ├── README.md / README_en.md
     └── node_modules/          # 内置 schemastery，离线可用
+```
+
+## 状态与测试
+
+面板状态按会话隔离，保存在 `$DSH_HOME/better-plan/<session>.json`（原子写、0600）；旧的共享
+`better-plan-state.json` 只做一次性归档。测试：
+
+```bash
+cd better-plan && npm test   # 31 个用例：状态机、门禁、CSRF、会话隔离、持久化
 ```
 
 ## 安装
