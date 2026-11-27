@@ -496,7 +496,7 @@ test('the chat message behind a question batch lands in the timeline first', asy
   for (const handler of b.listeners.get('session/event') || []) {
     handler({ id: 'session-message-entry' }, {
       type: 'user/message',
-      data: { message: { content: [{ type: 'text', text: '帮我做个插件' }] } },
+      data: { role: 'user', content: [{ type: 'text', text: '帮我做个插件' }] },
     })
   }
   const res = await post(b, {

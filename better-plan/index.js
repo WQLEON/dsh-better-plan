@@ -516,7 +516,8 @@ export function apply(ctx, config) {
       if (!disciplineActive(sessionId)) return
       if (event.type === 'user/message') {
         publishedSinceUser.delete(sessionId)
-        const text = assistantText(event.data?.message)
+        // user/message carries the message itself as the event data.
+        const text = assistantText(event.data ?? event.data?.message)
         if (text && !text.startsWith('[Plugin context from better-plan')) lastUserMessage.set(sessionId, text)
         return
       }
