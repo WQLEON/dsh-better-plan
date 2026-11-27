@@ -792,6 +792,9 @@ window.__ModuleLoader__.load({
         if (entry.kind === 'requirement' || entry.kind === 'message') {
           const message = entry.kind === 'message'
           const accent = message ? KIND_STYLE.message : KIND_STYLE.requirement
+          const body = message
+            ? String(entry.text || '').replace(/<system-reminder>[\s\S]*?<\/system-reminder>/gi, '').trim()
+            : (entry.text || '')
           return h('div', {
             key,
             style: {
@@ -801,7 +804,7 @@ window.__ModuleLoader__.load({
             },
           },
             h('div', { style: { ...dividerStyle, margin: 0, color: accent.line } }, message ? T.messageEntry : T.requirementEntry),
-            h('div', { style: { fontSize: 12, whiteSpace: 'pre-wrap', lineHeight: 1.6 } }, entry.text || ''))
+            h('div', { style: { fontSize: 12, whiteSpace: 'pre-wrap', lineHeight: 1.6 } }, body))
         }
         const questions = entry.kind === 'questions'
         const accent = questions ? KIND_STYLE.questions.line : KIND_STYLE.plan.line

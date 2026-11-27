@@ -498,6 +498,14 @@ export function apply(ctx, config) {
     return entry.text
   }
 
+  const userText = (message) => {
+    const parts = (Array.isArray(message?.content) ? message.content : [])
+      .filter((part) => part?.type === 'text')
+      .map((part) => part.text ?? '')
+    const visible = parts.filter((text) => text && !/^\s*<system-reminder>/i.test(text))
+    return (visible.length > 0 ? visible : parts).join('\n').trim()
+  }
+
   const assistantText = (message) => (Array.isArray(message?.content) ? message.content : [])
     .filter((part) => part?.type === 'text')
     .map((part) => part.text ?? '')
@@ -517,7 +525,7 @@ export function apply(ctx, config) {
       if (event.type === 'user/message') {
         publishedSinceUser.delete(sessionId)
         // user/message carries the message itself as the event data.
-        const text = assistantText(event.data ?? event.data?.message)
+        const text = userText(event.data)
         if (text && !text.startsWith('[Plugin context from better-plan')) lastUserMessage.set(sessionId, text)
         return
       }

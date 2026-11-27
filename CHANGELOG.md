@@ -2,6 +2,12 @@
 
 本项目的版本变化。版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## 0.10.4 — 2026-11-27
+
+### 修复
+
+- 会话消息条目混入 system-reminder：宿主只取可见文本（跳过 system-reminder 块），面板渲染时也剥掉提醒块，旧条目一并变干净。
+
 ## 0.10.3 — 2026-11-27
 
 ### 修复
