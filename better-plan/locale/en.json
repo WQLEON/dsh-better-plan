@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Better plan",
-    "description": "Two phases — ask, then plan — settled on a right-sidebar panel with one click. The agent publishes questions with clickable options (one recommended and pre-selected), you confirm the batch once, then it publishes an ordered plan you confirm the same way; only a confirmed plan is implemented. The chat-input icon turns the discipline on or off (blue = on) and right-click opens the panel. Each conversation has its own panel state, so two windows never share questions; state lives in $DSH_HOME/better-plan/<session>.json and is removed with the plugin. It adds about 0.73k input tokens per model request while on (discipline text plus two tools) and it deliberately keeps asking after a non-recommended answer until you confirm the follow-up round. Confirmed questions and plan items are never asked twice, and the Q/P numbering continues across rounds. When turned off, no discipline is injected and confirmations wake no agent; send /better-plan to arm a single message instead.",
+    "description": "A two-phase ask-then-plan panel: the agent publishes questions with pre-selected options, you confirm the batch once, then confirm the ordered plan before anything is implemented.",
     "detail": "docs/DETAIL.md"
   }
 }
