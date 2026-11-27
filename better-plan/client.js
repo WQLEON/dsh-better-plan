@@ -642,13 +642,14 @@ window.__ModuleLoader__.load({
         const measured = host && host.clientHeight > 0 ? host.clientHeight : (node && node.clientHeight > 0 ? node.clientHeight : viewport)
         return Math.max(140, Math.min(measured, viewport) - 56)
       }
-      const barKey = DRAFT_PREFIX + 'bar-height'
+      const barKey = 'better-plan:bar-height'
       const [barHeight, setBarHeight] = React.useState(() => {
         try {
-          const saved = Number(sessionStorage.getItem(barKey))
+          const saved = Number(localStorage.getItem(barKey))
           return Number.isFinite(saved) && saved >= 140 ? saved : 190
         } catch { return 190 }
       })
+      const [panelHeight, setPanelHeight] = React.useState(null)
       const draftKey = DRAFT_PREFIX + (sessionId || 'default')
 
       // Drafts survive a panel remount (same tab, same session).
@@ -733,7 +734,7 @@ window.__ModuleLoader__.load({
         const onMove = (move) => {
           const next = Math.min(Math.max(startHeight - (move.clientY - startY), 140), maxBarHeight())
           setBarHeight(next)
-          try { sessionStorage.setItem(barKey, String(next)) } catch { /* ignore */ }
+          try { localStorage.setItem(barKey, String(next)) } catch { /* ignore */ }
         }
         const onUp = () => {
           document.removeEventListener('mousemove', onMove)
@@ -800,14 +801,34 @@ window.__ModuleLoader__.load({
 
       React.useEffect(() => { setViewRound(null) }, [sessionId])
       React.useEffect(() => {
-        const clamp = () => setBarHeight((current) => {
-          const next = Math.min(current, maxBarHeight())
-          try { sessionStorage.setItem(barKey, String(next)) } catch { /* ignore */ }
-          return next
-        })
+        const clamp = () => {
+          const cap = maxBarHeight()
+          if (cap < 260) return
+          setBarHeight((current) => Math.min(current, cap))
+        }
         clamp()
         window.addEventListener('resize', clamp)
         return () => window.removeEventListener('resize', clamp)
+      }, [])
+
+      React.useLayoutEffect(() => {
+        const node = rootRef.current
+        if (!node) return undefined
+        const measure = () => {
+          const viewport = typeof window !== 'undefined' ? window.innerHeight : 800
+          let el = node.parentElement
+          let found = 0
+          while (el && el !== document.body) {
+            const style = window.getComputedStyle(el)
+            const height = el.clientHeight
+            if (style.overflowY !== 'visible' && height > 0) { found = height; break }
+            el = el.parentElement
+          }
+          setPanelHeight(found > 0 ? Math.min(found, viewport) : Math.round(viewport * 0.8))
+        }
+        measure()
+        window.addEventListener('resize', measure)
+        return () => window.removeEventListener('resize', measure)
       }, [])
 
       React.useEffect(() => {
@@ -895,7 +916,7 @@ window.__ModuleLoader__.load({
 
       return h('div', {
         ref: rootRef,
-        style: { height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', position: 'relative' },
+        style: { height: panelHeight ? panelHeight + 'px' : '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', position: 'relative' },
         onKeyDown: (event) => {
           if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && (pendingTotal > 0 || extra.trim())) {
             event.preventDefault()
