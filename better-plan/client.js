@@ -77,6 +77,9 @@ window.__ModuleLoader__.load({
       batchPlan: ['第 {n} 次计划', 'Plan #{n}'],
       requirementEntry: ['其他要求', 'Additional requirement'],
       reportEntry: ['执行报告', 'Execution report'],
+      expand: ['展开', 'Expand'],
+      collapse: ['收起', 'Collapse'],
+      relatedPlans: ['对应计划', 'Plans'],
       updatedMark: ['内容已更新', 'Updated'],
       conflict: ['面板内容已更新，请重新查看后再确认', 'The panel was updated — review it again before confirming'],
       loadFailed: ['无法读取面板状态，稍后自动重试', 'Could not read the panel state; retrying automatically'],
@@ -458,6 +461,91 @@ window.__ModuleLoader__.load({
       )
     }
 
+    /** Very small Markdown subset: headings, bullets, bold, inline code, fences. */
+    function renderMarkdown(source) {
+      const lines = String(source ?? '').split('\n')
+      const out = []
+      let fence = null
+      let list = null
+      const flushList = () => {
+        if (list) { out.push(h('ul', { key: 'ul-' + out.length, style: { margin: '4px 0', paddingLeft: 18 } }, list)); list = null }
+      }
+      for (const line of lines) {
+        if (/^\s*```/.test(line)) {
+          flushList()
+          if (fence === null) fence = { key: 'code-' + out.length, lines: [] }
+          else { out.push(h('pre', { key: fence.key, style: { margin: '6px 0', padding: 8, borderRadius: 6, background: 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,0.04))', overflowX: 'auto', fontSize: 11 } }, fence.lines.join('\n'))); fence = null }
+          continue
+        }
+        if (fence) { fence.lines.push(line); continue }
+        if (/^\s*$/.test(line)) { flushList(); continue }
+        const heading = /^(#{1,4})\s+(.*)$/.exec(line)
+        if (heading) {
+          flushList()
+          out.push(h('div', { key: 'h-' + out.length, style: { fontWeight: 600, fontSize: heading[1].length <= 2 ? 13 : 12, margin: '6px 0 2px' } }, inline(heading[2])))
+          continue
+        }
+        const bullet = /^\s*[-*]\s+(.*)$/.exec(line)
+        if (bullet) {
+          list = list || []
+          list.push(h('li', { key: 'li-' + out.length + '-' + list.length, style: { margin: '2px 0' } }, inline(bullet[1])))
+          continue
+        }
+        const ordered = /^\s*\d+\.\s+(.*)$/.exec(line)
+        if (ordered) {
+          list = list || []
+          list.push(h('li', { key: 'li-' + out.length + '-' + list.length, style: { margin: '2px 0' } }, inline(ordered[1])))
+          continue
+        }
+        flushList()
+        out.push(h('div', { key: 'p-' + out.length, style: { margin: '2px 0' } }, inline(line)))
+      }
+      flushList()
+      return out
+    }
+
+    function inline(source) {
+      const parts = String(source).split(/(`[^`]+`|\*\*[^*]+\*\*)/g)
+      return parts.map((part, index) => {
+        if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+          return h('code', { key: 'c' + index, style: { fontFamily: 'ui-monospace, monospace', fontSize: 11, padding: '0 3px', borderRadius: 4, background: 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,0.05))' } }, part.slice(1, -1))
+        }
+        if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+          return h('strong', { key: 'b' + index }, part.slice(2, -2))
+        }
+        return part
+      })
+    }
+
+    function ReportCard({ entry, planIds }) {
+      useLang()
+      const [open, setOpen] = React.useState(false)
+      const text = entry.text || ''
+      const long = text.length > 800
+      const shown = long && !open ? text.slice(0, 300) + '…' : text
+      const time = entry.at ? new Date(entry.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+      return h('div', {
+        style: {
+          border: '1px solid var(--dsw-alias-border-l1, transparent)', borderRadius: 10,
+          padding: 12, display: 'flex', flexDirection: 'column', gap: 6,
+          background: 'var(--dsw-alias-bg-layer-1, transparent)', fontSize: 12, lineHeight: 1.6,
+        },
+      },
+        h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 } },
+          h('strong', null, T.reportEntry),
+          h('span', { style: { fontSize: 10, opacity: 0.6 } }, time)),
+        h('div', null, renderMarkdown(shown)),
+        long ? h('button', {
+          type: 'button',
+          onClick: () => setOpen((v) => !v),
+          style: { alignSelf: 'flex-start', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 11, color: 'var(--dsw-alias-state-business-primary, inherit)' },
+        }, open ? T.collapse : T.expand) : null,
+        planIds && planIds.length > 0
+          ? h('div', { style: { fontSize: 10, opacity: 0.6 } }, T.relatedPlans + ': ' + planIds.join('、'))
+          : null
+      )
+    }
+
     /* --------------------------------------------------------------- settings */
 
     function SettingsSection({ settings, onSave }) {
@@ -648,14 +736,26 @@ window.__ModuleLoader__.load({
 
       const entries = timeline.filter((entry) => entry.round === shownRound)
       const liveById = (id) => decisions.find((d) => d.id === id) || plan.find((p) => p.id === id)
+      const planIdsOf = (entry) => {
+        const ids = []
+        for (const item of timeline) {
+          if (item.round !== entry.round || item.kind !== 'plan') continue
+          for (const planItem of item.items || []) {
+            if (planItem?.id && !ids.includes(planItem.id)) ids.push(planItem.id)
+          }
+        }
+        return ids
+      }
       const fill = (template, n) => String(template).replace('{n}', String(n))
       const renderEntry = (entry) => {
         const key = `${entry.round}-${entry.kind}-${entry.batch}-${entry.at}`
-        if (entry.kind === 'requirement' || entry.kind === 'report') {
-          const report = entry.kind === 'report'
+        if (entry.kind === 'report') {
+          return h(ReportCard, { key, entry, planIds: planIdsOf(entry) })
+        }
+        if (entry.kind === 'requirement') {
           return h('div', { key },
-            h('div', { style: dividerStyle }, report ? T.reportEntry : T.requirementEntry),
-            h('div', { style: { fontSize: 12, whiteSpace: 'pre-wrap', opacity: report ? 0.9 : 0.85, lineHeight: 1.6 } }, entry.text || ''))
+            h('div', { style: dividerStyle }, T.requirementEntry),
+            h('div', { style: { fontSize: 12, whiteSpace: 'pre-wrap', opacity: 0.85, lineHeight: 1.6 } }, entry.text || ''))
         }
         const questions = entry.kind === 'questions'
         return h('div', { key },
