@@ -72,7 +72,7 @@ window.__ModuleLoader__.load({
       prevRound: ['查看上一轮', 'Previous round'],
       nextRound: ['查看下一轮', 'Next round'],
       history: ['历史轮次（只读）', 'Past round (read-only)'],
-      backToCurrent: ['回到当前轮', 'Back to the current round'],
+      backToCurrent: ['回到最新轮次', 'Back to the latest round'],
       batchQuestions: ['第 {n} 次提问', 'Questions #{n}'],
       batchPlan: ['第 {n} 次计划', 'Plan #{n}'],
       requirementEntry: ['提出要求', 'Requirement'],
@@ -724,6 +724,10 @@ window.__ModuleLoader__.load({
           setDrafts({})
           setExtra('')
           try { sessionStorage.removeItem(draftKey) } catch { /* ignore */ }
+          if (typed) {
+            setViewRound(null)
+            stickRef.current = true
+          }
         }
       }
 
@@ -772,6 +776,10 @@ window.__ModuleLoader__.load({
           setDrafts({})
           setExtra('')
           try { sessionStorage.removeItem(draftKey) } catch { /* ignore */ }
+          if (typed) {
+            setViewRound(null)
+            stickRef.current = true
+          }
         }
       }
 
@@ -1030,10 +1038,11 @@ window.__ModuleLoader__.load({
 
         ),
         !isCurrent ? h('div', {
-          style: { flex: 'none', height: 64, boxSizing: 'border-box', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '8px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
+          style: { flex: 'none', height: 64, boxSizing: 'border-box', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', position: 'relative', boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
         },
-          h('div', { style: { fontSize: 12, opacity: 0.75, marginBottom: 8 } }, T.history),
-          h('button', { type: 'button', className: 'bp-primary', style: { ...primaryBtn, width: '100%', height: 36 }, onClick: () => setViewRound(null) }, T.backToCurrent)
+          h('div', { style: { fontSize: 12, opacity: 0.75, padding: '8px 16px 0' } }, T.history),
+          h('div', { style: { position: 'absolute', left: 16, right: 16, bottom: 12 } },
+            h('button', { type: 'button', className: 'bp-primary', style: { ...primaryBtn, width: '100%', height: 40 }, onClick: () => setViewRound(null) }, T.backToCurrent))
         ) : h('div', {
           style: { flex: 'none', minHeight: 150, height: barHeight, maxHeight: 'calc(100% - 56px)', position: 'relative', overflow: 'hidden', boxSizing: 'border-box', borderTop: '1px solid var(--dsw-alias-border-l1, transparent)', background: 'var(--dsw-alias-bg-layer-1, transparent)', padding: '10px 16px 68px', display: 'flex', flexDirection: 'column', gap: 6, boxShadow: '0 -2px 8px rgba(0,0,0,0.10)' },
         },
